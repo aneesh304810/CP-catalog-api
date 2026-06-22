@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { PLATFORMS, LAYER_STRIPE, NODES, EDGES, COL_EDGES } from "./mockData.js";
+import { PLATFORMS, LAYER_STRIPE, NODES, EDGES, COL_EDGES, computeLayout, nodeHeight } from "./mockData.js";
 import { api, probeApi } from "./api.js";
 import Dashboard from "./Dashboard.jsx";
 import Api360 from "./Api360.jsx";
 
 
 /* ============================================================
-   CP Metadata Catalog — Lineage Prototype (mock data)
+   CP Metadata Catalog â€” Lineage Prototype (mock data)
    Neutral slate/blue, OpenMetadata-style.
    Self-contained: custom left-to-right layout + SVG edges,
    custom HTML nodes with per-column anchors. No external graph lib.
@@ -182,12 +182,12 @@ export default function App() {
           <span style={{ fontSize: 11, color: t.sub, border: `1px solid ${t.border}`,
             padding: "2px 7px", borderRadius: 20 }}>Lineage</span>
           {apiMode !== null && (
-            <span title={apiMode ? "Connected to catalog API" : "API unreachable — showing demo data"}
+            <span title={apiMode ? "Connected to catalog API" : "API unreachable â€” showing demo data"}
               style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20,
                 color: apiMode ? "#16a34a" : "#b45309",
                 background: apiMode ? (dark ? "#0b1f14" : "#f0fdf4") : (dark ? "#231a0b" : "#fffbeb"),
                 border: `1px solid ${apiMode ? "#16a34a" : "#b45309"}44` }}>
-              {apiMode ? "● LIVE" : "● DEMO"}
+              {apiMode ? "â— LIVE" : "â— DEMO"}
             </span>
           )}
         </div>
@@ -196,7 +196,7 @@ export default function App() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search assets…  (⌘K)"
+            placeholder="Search assetsâ€¦  (âŒ˜K)"
             style={{ width: "100%", height: 34, borderRadius: 8, border: `1px solid ${t.border}`,
               background: t.panel2, color: t.text, padding: "0 12px", fontSize: 13, outline: "none" }}
           />
@@ -219,7 +219,7 @@ export default function App() {
 
         <div style={{ flex: 1 }} />
         <button onClick={() => setDark((d) => !d)} title="Toggle theme"
-          style={ghostBtn(t)}>{dark ? "☀" : "☾"}</button>
+          style={ghostBtn(t)}>{dark ? "â˜€" : "â˜¾"}</button>
       </div>
 
       {/* ---------- HEALTH & QUALITY ---------- */}
@@ -350,7 +350,7 @@ export default function App() {
                       setExpanded((s) => ({ ...s, [n.id]: !s[n.id] })); }}
                       title={isExpanded ? "Collapse columns" : "Expand columns"}
                       style={{ ...ghostBtn(t), width: 24, height: 24, padding: 0, fontSize: 11 }}>
-                      {isExpanded ? "▾" : "▸"}
+                      {isExpanded ? "â–¾" : "â–¸"}
                     </button>
                   )}
                 </div>
@@ -391,9 +391,9 @@ export default function App() {
         {/* zoom controls */}
         <div style={{ position: "absolute", right: 16, bottom: 16, display: "flex",
           flexDirection: "column", gap: 6, zIndex: 4 }}>
-          <button onClick={() => setView((v) => ({ ...v, k: Math.min(2.2, v.k * 1.15) }))} style={zoomBtn(t)}>＋</button>
-          <button onClick={() => setView((v) => ({ ...v, k: Math.max(0.35, v.k / 1.15) }))} style={zoomBtn(t)}>－</button>
-          <button onClick={fitView} style={zoomBtn(t)} title="Reset view">⤢</button>
+          <button onClick={() => setView((v) => ({ ...v, k: Math.min(2.2, v.k * 1.15) }))} style={zoomBtn(t)}>ï¼‹</button>
+          <button onClick={() => setView((v) => ({ ...v, k: Math.max(0.35, v.k / 1.15) }))} style={zoomBtn(t)}>ï¼</button>
+          <button onClick={fitView} style={zoomBtn(t)} title="Reset view">â¤¢</button>
         </div>
 
         {/* legend */}
@@ -403,7 +403,7 @@ export default function App() {
           <Legend c={LAYER_STRIPE.bronze} label="bronze" />
           <Legend c={LAYER_STRIPE.silver} label="silver" />
           <Legend c={LAYER_STRIPE.gold} label="gold" />
-          <span style={{ color: t.sub }}>·  click a column to trace lineage</span>
+          <span style={{ color: t.sub }}>Â·  click a column to trace lineage</span>
         </div>
       </div>
       )}
@@ -471,11 +471,11 @@ function Drawer({ node, t, onClose }) {
             border: `1px solid ${plat.badge}33`, padding: "2px 6px", borderRadius: 5 }}>{plat.label}</span>
           <div style={{ fontSize: 16, fontWeight: 680, marginTop: 8 }}>{node.name}</div>
           <div style={{ fontSize: 12, color: t.sub }}>
-            {node.type === "model" ? "dbt model · " + node.materialization
-              : node.type === "pipeline" ? "airflow dag" : node.schema + " · " + node.objectType}
+            {node.type === "model" ? "dbt model Â· " + node.materialization
+              : node.type === "pipeline" ? "airflow dag" : node.schema + " Â· " + node.objectType}
           </div>
         </div>
-        <button onClick={onClose} style={ghostBtn(t)}>✕</button>
+        <button onClick={onClose} style={ghostBtn(t)}>âœ•</button>
       </div>
 
       <div style={{ overflow: "auto", padding: 18, fontSize: 13, lineHeight: 1.5 }}>
@@ -486,7 +486,7 @@ function Drawer({ node, t, onClose }) {
             {node.columns.map((c) => (
               <div key={c.name} style={{ display: "flex", justifyContent: "space-between",
                 padding: "5px 0", borderBottom: `1px solid ${t.border}` }}>
-                <span>{c.pk && <span style={{ color: "#ca8a04" }}>● </span>}{c.name}</span>
+                <span>{c.pk && <span style={{ color: "#ca8a04" }}>â— </span>}{c.name}</span>
                 <span style={{ color: t.sub, fontSize: 12 }}>{c.type}</span>
               </div>
             ))}
@@ -504,7 +504,7 @@ function Drawer({ node, t, onClose }) {
         {node.tests && (
           <Section t={t} title="Tests">
             {node.tests.map((x, i) => (
-              <div key={i} style={{ fontSize: 12, padding: "3px 0", color: t.sub }}>✓ {x}</div>
+              <div key={i} style={{ fontSize: 12, padding: "3px 0", color: t.sub }}>âœ“ {x}</div>
             ))}
           </Section>
         )}
@@ -516,7 +516,7 @@ function Drawer({ node, t, onClose }) {
                 alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${t.border}` }}>
                 <span style={{ fontSize: 12 }}>{r.run}</span>
                 <span style={{ fontSize: 11, color: r.status === "success" ? "#16a34a" : "#dc2626" }}>
-                  {r.status} · {r.dur}
+                  {r.status} Â· {r.dur}
                 </span>
               </div>
             ))}
