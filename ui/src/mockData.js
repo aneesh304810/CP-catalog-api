@@ -162,7 +162,7 @@ export const COL_EDGES = [
 ];
 
 // ---------- LAYOUT (simple longest-path layering, L->R) ------------------
-function computeLayout(nodes, edges, planes) {
+export function computeLayout(nodes, edges, planes) {
   const visible = nodes.filter((n) => {
     if (n.type === "dataset") return true;
     if (n.type === "model") return planes.transform || planes.orchestration;
@@ -216,7 +216,7 @@ function computeLayout(nodes, edges, planes) {
 }
 
 const HEADER_H = 46, COL_ROW_H = 24, COL_PAD = 8;
-function nodeHeight(n, expanded) {
+export function nodeHeight(n, expanded) {
   const hasCols = (n.columns && n.columns.length) || 0;
   if (n.type === "pipeline") return HEADER_H + 8;
   if (!expanded) return HEADER_H + 8;
