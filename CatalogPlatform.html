@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Catalog Platform</title>
+<style>
+:root{
+  --navy:#10193b;--dark:#0f4775;--muted:#5f87a7;--tint:#cae3ee;--pop:#31bced;--hover:#0091bf;--pop2:#e35f42;
+  --success:#159943;--successBg:#d0ebd9;--danger:#c1113a;--dangerBg:#f3d2d7;--warning:#e67e22;--warningBg:#fae5d3;--info:#0091bf;--infoBg:#e0f5fd;
+  --white:#fff;--pageBg:#f5f8f8;--accordionBg:#dfe6e9;--hoverBg:#eee;--disabled:#dbdae0;--border:#b5b6b6;--textMuted:#999;--textHelp:#666;--text:#333;
+  --modSystem:#10193b;--modApi:#0091bf;--modData:#0f4775;--modDatapoint:#159943;
+}
+.dark{
+  --navy:#0a0f24;--pageBg:#0b1220;--white:#0f172a;--accordionBg:#111c34;--hoverBg:#111c34;--border:#1e293b;--text:#e2e8f0;--textMuted:#94a3b8;--textHelp:#64748b;--tint:#15324a;--disabled:#1e293b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--pageBg);color:var(--text);font-size:14px;transition:.25s ease-out}
+button{font-family:inherit}
+.hidden{display:none!important}
+/* header */
+header{position:sticky;top:0;z-index:30;height:64px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px}
+.logo{display:flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:0;color:var(--text)}
+.logoTile{width:32px;height:32px;border-radius:3px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.logoTxt{font-size:16px;font-weight:500}
+.search{flex:1;max-width:480px;height:34px;display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--border);border-radius:2px;padding:0 12px;cursor:text;color:var(--textMuted);transition:.25s}
+.search:hover{border-color:var(--hover)}
+.search span.ph{font-size:13px;flex:1;text-align:left;overflow:hidden;white-space:nowrap}
+.search kbd{font-size:11px;font-weight:500;border:1px solid var(--border);border-radius:2px;padding:1px 5px}
+.hbtn{width:34px;height:34px;border-radius:2px;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text);font-size:15px;transition:.25s;display:grid;place-items:center}
+.hbtn:hover{color:var(--hover)}
+.hicon{width:34px;height:34px;border-radius:2px;border:none;background:none;cursor:pointer;color:var(--textHelp);display:grid;place-items:center;position:relative;transition:.25s}
+.hicon:hover{color:var(--hover)}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--textHelp)}
+.livedot{width:8px;height:8px;border-radius:50%;background:var(--success)}
+.reddot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--danger)}
+.user{display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;padding:0;color:var(--text)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--dark);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px}
+main{padding:0 24px 50px;max-width:1600px;margin:0 auto}
+/* hero */
+.hero{padding:30px 0 20px}
+.hero h1{font-size:28px;font-weight:700;margin:0;letter-spacing:-.2px}
+.hero p{font-size:14px;color:var(--textHelp);margin:8px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chip{border:none;cursor:pointer;background:var(--tint);color:var(--dark);font-size:13px;font-weight:500;padding:2px 8px;border-radius:2px;transition:.25s}
+.chip:hover{background:var(--hover);color:#fff}
+/* section header */
+.sh{font-size:24px;font-weight:500;color:var(--dark);border-bottom:2px solid var(--dark);padding-bottom:12px;margin:30px 0 24px;line-height:1}
+/* module grid */
+.mgrid{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:20px}
+.mcard{position:relative;text-align:left;height:240px;background:var(--white);border:1px solid var(--border);border-radius:3px;padding:20px;cursor:pointer;display:flex;flex-direction:column;transition:.25s;overflow:hidden}
+.mcard:hover{transform:translateY(-2px);box-shadow:0 3px 5px rgba(0,0,0,.2)}
+.mspine{position:absolute;left:0;top:0;bottom:0;width:3px}
+.mtile{width:40px;height:40px;border-radius:3px;display:grid;place-items:center}
+.mcard h3{font-size:18px;font-weight:500;margin:12px 0 2px}
+.mdesc{font-size:12px;color:var(--textMuted);margin:0}
+.mkpis{margin-top:auto;display:flex;gap:14px}
+.mkpi .n{font-size:22px;font-weight:700;line-height:1.1}
+.mkpi .l{font-size:12px;color:var(--textMuted)}
+.mfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:4px 6px;border-radius:2px}
+.explore{font-size:13px;font-weight:600}
+/* panels */
+.cols{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;align-items:start}
+.panel{background:var(--white);border:1px solid var(--border);border-radius:3px;padding:20px}
+.panel h3{font-size:18px;font-weight:500;margin:0 0 14px}
+.alert{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px;border-radius:2px;border:none;background:transparent;cursor:pointer;transition:.25s}
+.alert:hover{background:var(--hoverBg)}
+.sevdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.oicon{width:22px;height:22px;border-radius:2px;display:grid;place-items:center;flex-shrink:0}
+.atitle{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actx{display:block;font-size:12px;color:var(--textHelp)}
+.atime{font-size:11px;font-weight:500;color:var(--textMuted);flex-shrink:0}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.htile{padding:15px;background:var(--pageBg);border:1px solid var(--border);border-radius:2px}
+.hlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--textMuted)}
+.hval{font-size:24px;font-weight:700}
+.link{background:none;border:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);padding:0;margin-top:14px;transition:.25s}
+.link:hover{color:var(--hover)}
+/* tools */
+.tlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--textMuted);margin-bottom:10px}
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.ttile{text-align:left;height:96px;background:var(--white);border:1px solid var(--border);border-radius:3px;padding:15px;cursor:pointer;transition:.25s;display:flex;flex-direction:column;justify-content:space-between}
+.ttile:hover{transform:translateY(-2px);box-shadow:0 3px 5px rgba(0,0,0,.2);border-color:var(--hover)}
+.tname{display:block;font-size:13px;font-weight:600}
+.tdesc{display:block;font-size:11px;color:var(--textHelp)}
+/* whats new */
+.whatsnew{margin-top:30px;min-height:80px;background:var(--accordionBg);border-radius:3px;padding:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+/* module screen */
+.screen{display:flex;flex-direction:column;height:calc(100vh - 64px)}
+.stoolbar{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--white)}
+.back{display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:2px;padding:6px 12px;cursor:pointer;color:var(--text);font-size:13px;font-weight:500;transition:.25s}
+.back:hover{border-color:var(--hover);color:var(--hover)}
+.stitle{font-size:18px;font-weight:500;display:flex;align-items:center;gap:8px}
+.seg{display:flex;background:var(--pageBg);border:1px solid var(--border);border-radius:3px;padding:3px;gap:2px}
+.seg button{border:none;cursor:pointer;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:2px;background:transparent;color:var(--textMuted)}
+.seg button.on{background:var(--dark);color:#fff}
+.sbody{flex:1;display:flex;min-height:0}
+.canvas{flex:1;position:relative;overflow:hidden;background:var(--pageBg);background-image:radial-gradient(circle at 1px 1px,var(--border) 1px,transparent 0);background-size:22px 22px;cursor:grab}
+.gnode{position:absolute;background:var(--white);border:1px solid var(--border);border-radius:3px;cursor:pointer;box-shadow:0 1px 3px rgba(2,6,23,.1);transition:box-shadow .15s,transform .15s;width:160px}
+.gnode:hover{box-shadow:0 4px 14px rgba(2,6,23,.18)}
+.gnode.sel{box-shadow:0 0 0 3px var(--pop),0 4px 14px rgba(2,6,23,.18)}
+.gnode .hd{display:flex;align-items:center;gap:7px;padding:9px 11px}
+.gnm{font-size:12px;font-weight:650}
+.gmt{font-size:9.5px;color:var(--textMuted);padding:0 11px 8px;margin-top:-3px}
+.gcols{border-top:1px solid var(--border);padding:3px 0}
+.gcol{font-size:10.5px;padding:2px 11px;display:flex;justify-content:space-between;color:var(--textHelp)}
+.gcol.key{font-weight:700;color:var(--text)}
+.mbadge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px}
+.snum{width:20px;height:20px;border-radius:50%;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0}
+.zoomctl{position:absolute;top:14px;right:14px;display:flex;gap:6px}
+.zbtn{width:36px;height:36px;border-radius:3px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:16px;color:var(--text);box-shadow:0 2px 6px rgba(2,6,23,.1)}
+.zbtn:hover{color:var(--hover)}
+.legend{position:absolute;left:14px;bottom:14px;background:var(--white);border:1px solid var(--border);border-radius:3px;padding:9px 12px;font-size:11px;color:var(--textHelp);display:flex;flex-direction:column;gap:5px}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.flowpick{position:absolute;top:14px;left:14px;display:flex;gap:6px;flex-wrap:wrap;max-width:60%}
+.fbtn{border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;padding:5px 11px;border-radius:3px;background:var(--white);color:var(--textMuted)}
+.fbtn.on{background:var(--pop2);color:#fff;border-color:var(--pop2)}
+.drawer{width:360px;flex-shrink:0;overflow:auto;background:var(--white);border-left:1px solid var(--border)}
+.dh{padding:16px 18px;border-bottom:1px solid var(--border)}
+.dbody{padding:18px}
+.empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--textMuted);font-size:13px;text-align:center;padding:0 30px;line-height:1.5}
+.sect{margin-top:18px}
+.st{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--textMuted);font-weight:700;margin-bottom:8px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.kv .k{color:var(--textMuted)}
+.pill{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px}
+.frow{padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.dpitem{background:var(--pageBg);border:1px solid var(--border);border-radius:3px;padding:11px 13px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.dplist{width:230px;flex-shrink:0;border-right:1px solid var(--border);overflow:auto;background:var(--white)}
+.dpbtn{display:block;width:100%;text-align:left;border:none;cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;background:transparent;color:var(--text)}
+.dpbtn.on{background:var(--dark);color:#fff}
+/* palette */
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.4);display:flex;justify-content:center;align-items:flex-start;padding-top:15vh}
+.cmd{width:640px;max-width:92vw;background:var(--white);border:1px solid var(--border);border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.18);overflow:hidden}
+.cmd input{width:100%;height:48px;border:none;outline:none;font-size:16px;padding:0 20px;background:var(--white);color:var(--text);border-bottom:1px solid var(--border)}
+.cmdlist{max-height:50vh;overflow:auto}
+.cmdgrp{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--textMuted);padding:10px 20px 5px}
+.cmdrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;height:40px;padding:0 20px;border:none;cursor:pointer;background:transparent;border-left:3px solid transparent;color:var(--text)}
+.cmdrow.on{background:var(--pageBg);border-left-color:var(--pop)}
+.cmdrow .cn{font-size:14px;font-weight:500;flex:1}
+.cmdrow .cm{font-size:12px;color:var(--textMuted)}
+svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+@media (max-width:1024px){
+  .mgrid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.tgrid{grid-template-columns:1fr 1fr}
+  .drawer{width:300px}.dplist{width:160px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ===================== tokens / glyphs ===================== */
+var G={wave:"\uD83D\uDC4B",arrow:"\u2192",chevR:"\u203A",caret:"\u25BE",sun:"\u2600",moon:"\u263E",
+  up:"\u25B2",down:"\u25BC",dot:"\u25CF",spark:"\u2728",neu:"\uD83C\uDD95",mid:"\u00B7",cmd:"\u2318",
+  plus:"\uFF0B",minus:"\uFF0D",fit:"\u2922",key:"\uD83D\uDD11"};
+var cssv=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();};
+
+/* ===================== data ===================== */
+var MODULES=[
+ {id:"system",name:"System Interface 360",color:"#10193b",desc:"System-to-system integration map",
+  kpis:[["828","interfaces"],["48","systems"],["12","marked Replace"]],status:["24 mapped flows","info"]},
+ {id:"api",name:"API 360",color:"#0091bf",desc:"API dependency, business flows, endpoint detail",
+  kpis:[["215","endpoints"],["12","business flows"],["4","sources"]],status:["LIVE","success"]},
+ {id:"data",name:"Data 360",color:"#0f4775",desc:"Lineage across Oracle, dbt, Airflow",
+  kpis:[["1,247","datasets"],["89","pipelines"],["92.4%","avg DQ"]],status:["3 failing","danger"]},
+ {id:"datapoint",name:"Datapoint 360",color:"#159943",desc:"Cross-cutting business term tracking",
+  kpis:[["4,892","terms"],["3","modules linked"],["100%","coverage"]],status:["linked","info"]}
+];
+function modColor(id){for(var i=0;i<MODULES.length;i++)if(MODULES[i].id===id)return MODULES[i].color;return "#5f87a7";}
+function modName(id){for(var i=0;i<MODULES.length;i++)if(MODULES[i].id===id)return MODULES[i].name;return id;}
+
+var ALERTS=[
+ {sev:"danger",origin:"data",title:"GLD_position_summary quality gate failed",ctx:"Data 360 \u00B7 Gold layer",time:"2h ago"},
+ {sev:"danger",origin:"system",title:"AddVantage \u2192 CAM interface stale",ctx:"System Interface 360 \u00B7 4h overdue",time:"30m ago"},
+ {sev:"danger",origin:"api",title:"POST /reconciliation latency spike",ctx:"API 360 \u00B7 p95 1.8s",time:"1h ago"},
+ {sev:"warning",origin:"system",title:"12 systems pending migration decision",ctx:"System Interface 360",time:"today"},
+ {sev:"warning",origin:"data",title:"New unmapped column in SLV_clients",ctx:"Data 360 \u00B7 Silver layer",time:"yesterday"}
+];
+var HEALTH=[
+ {label:"AVG DQ SCORE",val:"92.4%",state:"success",trend:"up",delta:"+0.3"},
+ {label:"DATASETS FAILING",val:"3",state:"danger",trend:"down",delta:"-1"},
+ {label:"GATES P / W / F",val:"6 / 1 / 1",state:"warning",trend:null,delta:""},
+ {label:"FAILED RUNS (7D)",val:"2",state:"success",trend:"down",delta:"-2"}
+];
+var OPS=[["health","Health & Quality","DQ scores, gates"],["obs","Observability","Runs, latency, SLAs"],
+ ["impact","Impact Analysis","Downstream blast radius"],["ingest","Ingestion Status","Connector runs"]];
+var ADMIN=[["src","Sources / Connectors","Manage ingestion"],["access","Access Control","Roles & permissions"],
+ ["settings","Settings","Preferences"],["help","Help & Docs","Guides & reference"],["whatsnew","What's New","Release notes"]];
+
+/* ---- System Interface 360 graph ---- */
+var SYS_NODES=[
+ {id:"AddVantage",lab:"AddVantage",sub:"ledger",col:0,row:0,iface:48,repl:true},
+ {id:"STAR",lab:"STAR",sub:"legacy",col:0,row:1,iface:22,repl:true},
+ {id:"CAM",lab:"CAM",sub:"custody",col:1,row:0,iface:31,repl:false},
+ {id:"PBDW",lab:"PBDW",sub:"warehouse",col:2,row:0,iface:64,repl:false},
+ {id:"SEI",lab:"SEI SWP",sub:"target",col:2,row:1,iface:40,repl:false}
+];
+var SYS_EDGES=[
+ {f:"AddVantage",t:"CAM",kind:"active",cnt:14},{f:"AddVantage",t:"PBDW",kind:"active",cnt:20},
+ {f:"STAR",t:"PBDW",kind:"replace",cnt:9},{f:"CAM",t:"PBDW",kind:"active",cnt:18},
+ {f:"PBDW",t:"SEI",kind:"active",cnt:11},{f:"STAR",t:"CAM",kind:"replace",cnt:7}
+];
+/* ---- API 360 ---- */
+var EP={
+ "/accounts":{m:"GET",ref:"Account",sum:"Active investment accounts.",owner:"Aneesh",
+   fields:[["accountId","string",1,"Unique account id"],["baseCurrency","string",0,"ISO currency"],["status","string",0,"Lifecycle status"]],flows:["Daily Reconciliation","Position Load"]},
+ "/positions":{m:"GET",ref:"Position",sum:"Holdings per account.",owner:"Jorge",
+   fields:[["acctId","string",1,"Account id for position"],["securityId","string",1,"Security held"],["qty","decimal",0,"Quantity held"]],flows:["Daily Reconciliation","Position Load"]},
+ "/transactions":{m:"GET",ref:"Transaction",sum:"Executed transactions.",owner:"Jorge",
+   fields:[["account_no","string",1,"Account number"],["tradeDate","date",0,"Trade date"],["amount","decimal",0,"Amount"]],flows:["Daily Reconciliation"]},
+ "/reconciliation":{m:"POST",ref:"Recon",sum:"Submit reconciliation.",owner:"Hema",
+   fields:[["accountId","string",1,"Account id"],["reconId","string",0,"Run id"]],flows:["Daily Reconciliation"]}
+};
+var EP_NODES=[{id:"/accounts",col:0,row:0},{id:"/positions",col:1,row:0},{id:"/transactions",col:1,row:1},{id:"/reconciliation",col:2,row:0}];
+var EP_EDGES=[{f:"/accounts",t:"/positions",k:"ref",via:"Account"},{f:"/accounts",t:"/transactions",k:"ref",via:"Account"},
+ {f:"/positions",t:"/reconciliation",k:"ref",via:"Account"},{f:"/transactions",t:"/reconciliation",k:"runtime",via:"recon job"}];
+var FLOWS={
+ "Daily Reconciliation":{owner:"Hema",sched:"06:00 weekdays",
+   steps:[["GET /accounts","\u2014","accountId","List accounts"],["GET /positions","{{accountId}}","securityId, qty","Positions"],
+     ["GET /transactions","{{accountId}}","tradeDate, amount","Transactions"],["POST /reconciliation","{{accountId}}, positions, txns","reconId","Submit recon"]],
+   edges:[[1,2,"accountId"],[1,3,"accountId"],[2,4,"positions"],[3,4,"txns"]]},
+ "Position Load":{owner:"Jorge",sched:"hourly",
+   steps:[["GET /accounts","\u2014","accountId","Account list"],["GET /positions","{{accountId}}","securityId, qty","Load positions"]],
+   edges:[[1,2,"accountId"]]}
+};
+/* ---- Data 360 lineage ---- */
+var DATA_NODES=[
+ {id:"positions",lab:"positions",sub:"mssql \u00B7 risk",col:0,row:0,layer:"src",cols:["position_id*","account","instrument","qty"],gate:"warn"},
+ {id:"TRADES",lab:"TRADES",sub:"oracle \u00B7 STAR",col:0,row:1,layer:"src",cols:["trade_id*","account","price","qty"],gate:"pass"},
+ {id:"BRZ_POSITIONS",lab:"BRZ_POSITIONS",sub:"bronze",col:1,row:0,layer:"bronze",cols:["position_id*","account","instrument","qty"],gate:"pass"},
+ {id:"SLV_POSITIONS",lab:"SLV_POSITIONS",sub:"silver \u00B7 dbt",col:2,row:0,layer:"silver",cols:["position_sk*","account","instrument","qty","valid_from","valid_to"],gate:"fail"},
+ {id:"GLD_POSITION_SUMMARY",lab:"GLD_POSITION_SUM",sub:"gold \u00B7 dbt",col:3,row:0,layer:"gold",cols:["account*","instrument","total_qty","mkt_value","asof"],gate:"pass"},
+ {id:"swp_dag",lab:"swp_medallion_dag",sub:"airflow",col:3,row:1,layer:"orch",cols:[],gate:"pass"}
+];
+var DATA_EDGES=[
+ {f:"positions",t:"BRZ_POSITIONS",kind:"data"},{f:"BRZ_POSITIONS",t:"SLV_POSITIONS",kind:"transform"},
+ {f:"TRADES",t:"SLV_POSITIONS",kind:"transform"},{f:"SLV_POSITIONS",t:"GLD_POSITION_SUMMARY",kind:"transform"},
+ {f:"swp_dag",t:"GLD_POSITION_SUMMARY",kind:"orch"}
+];
+var LAYERC={src:"#5f87a7",bronze:"#b45309",silver:"#64748b",gold:"#ca8a04",orch:"#7c3aed"};
+var GATEC={pass:"#159943",warn:"#e67e22",fail:"#c1113a"};
+/* ---- Datapoint 360 ---- */
+var DPOINTS={
+ "accountId":{type:"string",desc:"Unique investment account identifier",
+   api:["/accounts","/reconciliation"],data:["BRZ_POSITIONS","SLV_POSITIONS"],sys:["AddVantage","CAM"],flows:["Daily Reconciliation","Position Load"]},
+ "securityId":{type:"string",desc:"Security identifier held in a position",
+   api:["/positions"],data:["SLV_POSITIONS","GLD_POSITION_SUMMARY"],sys:["PBDW"],flows:["Daily Reconciliation","Position Load"]},
+ "tradeDate":{type:"date",desc:"Date a trade executed",
+   api:["/transactions"],data:["TRADES"],sys:["STAR"],flows:["Daily Reconciliation"]},
+ "amount":{type:"decimal",desc:"Monetary amount of a transaction",
+   api:["/transactions"],data:["TRADES","GLD_POSITION_SUMMARY"],sys:["STAR","PBDW"],flows:["Daily Reconciliation"]}
+};
+var PALETTE={
+ recent:["GLD_position_summary","POST /reconciliation","AddVantage interface"],
+ Systems:[["AddVantage","ledger \u00B7 48 interfaces","system"],["CAM","custody \u00B7 31 interfaces","system"],["STAR","legacy \u00B7 22 interfaces","system"]],
+ Endpoints:[["GET /accounts","API 360 \u00B7 SEI SWP","api"],["POST /reconciliation","API 360 \u00B7 SEI SWP","api"]],
+ Datasets:[["GLD_position_summary","Data 360 \u00B7 Gold","data"],["SLV_clients","Data 360 \u00B7 Silver","data"]],
+ Datapoints:[["accountId","Datapoint 360 \u00B7 12 endpoints","datapoint"],["securityId","Datapoint 360 \u00B7 8 endpoints","datapoint"]],
+ Actions:[["Go to Data 360","g d","data"],["Open Settings","","settings"],["Open Help","","help"]]
+};
+
+/* ===================== state ===================== */
+var state={dark:false,screen:"home",palette:false,
+  sysSel:null,apiView:"api",apiSel:null,apiFlow:"Daily Reconciliation",apiStep:null,
+  dataPlane:"data",dataExpanded:false,dataSel:null,dpSel:"accountId",
+  zoom:1,panX:0,panY:0};
+
+/* ===================== helpers ===================== */
+function el(html){var d=document.createElement("div");d.innerHTML=html;return d.firstElementChild;}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function curve(a,b){var dx=Math.max(45,(b.x-a.x)*.5);return "M "+a.x+" "+a.y+" C "+(a.x+dx)+" "+a.y+", "+(b.x-dx)+" "+b.y+", "+b.x+" "+b.y;}
+
+/* svg icons (inline) */
+var IC={
+ system:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
+ api:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="2.5"/><path d="M12 7v2.5M12 14.5V17M7 12h2.5M14.5 12H17"/></svg>',
+ data:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>',
+ datapoint:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+ bell:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+ search:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
+};
+function modIcon(id){return IC[id]||IC.data;}
+
+/* ===================== render root ===================== */
+function render(){
+  var app=document.getElementById("app");
+  app.className=state.dark?"dark":"";
+  document.body.className=state.dark?"dark":"";
+  var html=header();
+  if(state.screen==="home")html+=home();
+  else html+=moduleScreen(state.screen);
+  app.innerHTML=html;
+  if(state.palette)app.appendChild(paletteEl());
+  wire();
+  if(state.screen!=="home")drawGraph(state.screen);
+}
+
+/* ===================== header ===================== */
+function header(){
+  return '<header>'+
+    '<button class="logo" data-nav="home"><span class="logoTile">CP</span><span class="logoTxt">Catalog Platform</span></button>'+
+    '<button class="search" data-palette="1"><span style="display:flex;color:var(--textMuted)">'+IC.search+'</span>'+
+      '<span class="ph">Search across systems, APIs, datasets, datapoints</span><kbd>'+G.cmd+'K</kbd></button>'+
+    '<div class="live"><span class="livedot"></span><span>LIVE '+G.mid+' 6m ago</span></div>'+
+    '<button class="hicon" data-log="Notifications" aria-label="Notifications">'+IC.bell+'<span class="reddot"></span></button>'+
+    '<button class="hbtn" data-theme="1" aria-label="Toggle theme">'+(state.dark?G.sun:G.moon)+'</button>'+
+    '<button class="user" data-log="User menu"><span class="avatar">AN</span><span>Aneesh</span><span style="font-size:11px;color:var(--textMuted)">'+G.caret+'</span></button>'+
+  '</header>';
+}
+
+/* ===================== home ===================== */
+function home(){
+  var h='<main>';
+  // hero
+  h+='<section class="hero"><h1>Good morning, Aneesh '+G.wave+'</h1>'+
+     '<p><span>You have</span>'+
+     '<button class="chip" data-nav="data">3 datasets</button><span style="color:var(--textMuted)">'+G.mid+'</span>'+
+     '<button class="chip" data-nav="api">2 API</button><span style="color:var(--textMuted)">'+G.mid+'</span>'+
+     '<button class="chip" data-nav="system">1 system alert</button>'+
+     '<span>needing attention.</span></p></section>';
+  // workspace
+  h+='<h2 class="sh">Your workspace</h2><div class="mgrid">';
+  for(var i=0;i<MODULES.length;i++){var m=MODULES[i];
+    var sem=m.status[1],semC="var(--"+sem+")",semBg=sem==="info"?"var(--tint)":"var(--"+sem+"Bg)",semTxt=sem==="info"?"var(--dark)":semC;
+    h+='<button class="mcard" data-nav="'+m.id+'">'+
+       '<span class="mspine" style="background:'+m.color+'"></span>'+
+       '<span class="mtile" style="background:'+m.color+'1F;color:'+m.color+'">'+modIcon(m.id)+'</span>'+
+       '<h3>'+m.name+'</h3><p class="mdesc">'+m.desc+'</p><div class="mkpis">';
+    for(var k=0;k<m.kpis.length;k++)h+='<div class="mkpi"><div class="n">'+m.kpis[k][0]+'</div><div class="l">'+m.kpis[k][1]+'</div></div>';
+    h+='</div><div class="mfoot"><span class="badge" style="color:'+semTxt+';background:'+semBg+'">'+(sem==="success"?G.dot+" ":"")+m.status[0]+'</span>'+
+       '<span class="explore" style="color:'+m.color+'">Explore '+G.arrow+'</span></div></button>';
+  }
+  h+='</div>';
+  // attention + health
+  h+='<h2 class="sh">Needs attention</h2><div class="cols">';
+  h+='<section class="panel"><h3>Needs your attention</h3>';
+  for(var a=0;a<ALERTS.length;a++){var al=ALERTS[a];var sc=al.sev==="danger"?"var(--danger)":"var(--warning)";var oc=modColor(al.origin);
+    h+='<button class="alert" data-nav="'+al.origin+'"><span class="sevdot" style="background:'+sc+'"></span>'+
+       '<span class="oicon" style="background:'+oc+'1F;color:'+oc+'">'+modIcon(al.origin)+'</span>'+
+       '<span style="flex:1;min-width:0"><span class="atitle"><span style="color:'+sc+';font-weight:700;font-size:11px;text-transform:uppercase;margin-right:6px">'+(al.sev==="danger"?"Critical":"Warning")+'</span>'+esc(al.title)+'</span>'+
+       '<span class="actx">'+al.ctx+'</span></span><span class="atime">'+al.time+'</span><span style="color:var(--textMuted)">'+G.chevR+'</span></button>';
+  }
+  h+='<button class="link" data-log="All alerts">See all 8 alerts '+G.arrow+'</button></section>';
+  h+='<section class="panel"><h3>Health &amp; quality</h3><div class="hgrid">';
+  for(var hh=0;hh<HEALTH.length;hh++){var H=HEALTH[hh];var c="var(--"+H.state+")";
+    h+='<div class="htile"><div class="hlabel">'+H.label+'</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">'+
+       '<span class="hval" style="color:'+c+'">'+H.val+'</span>'+(H.trend?'<span style="font-size:11px;font-weight:600;color:var(--success)">'+(H.trend==="up"?G.up:G.down)+' '+H.delta+'</span>':'')+'</div></div>';
+  }
+  h+='</div><button class="link" data-nav="data">Open dashboard '+G.arrow+'</button></section></div>';
+  // tools
+  h+='<h2 class="sh">More tools</h2>';
+  h+='<div class="tlabel">Operations</div><div class="tgrid">';
+  for(var o=0;o<OPS.length;o++)h+='<button class="ttile" data-log="'+OPS[o][1]+'"><span style="color:var(--dark)">'+IC.data+'</span><span><span class="tname">'+OPS[o][1]+'</span><span class="tdesc">'+OPS[o][2]+'</span></span></button>';
+  h+='</div><div style="height:24px"></div><div class="tlabel">Admin</div><div class="tgrid">';
+  for(var ad=0;ad<ADMIN.length;ad++)h+='<button class="ttile" data-log="'+ADMIN[ad][1]+'"><span style="color:var(--dark)">'+IC.api+'</span><span><span class="tname">'+ADMIN[ad][1]+'</span><span class="tdesc">'+ADMIN[ad][2]+'</span></span></button>';
+  h+='</div>';
+  // whats new
+  h+='<section class="whatsnew"><span class="tlabel" style="margin:0">What\'s new</span>'+
+     '<span style="display:flex;align-items:center;gap:6px;font-size:14px">'+G.neu+' System Interface 360 launched <span style="font-size:11px;color:var(--textHelp)">Mar 15</span></span>'+
+     '<span style="color:var(--textMuted)">'+G.mid+'</span>'+
+     '<span style="display:flex;align-items:center;gap:6px;font-size:14px">'+G.spark+' Datapoint 360 cross-module linking <span style="font-size:11px;color:var(--textHelp)">Mar 12</span></span>'+
+     '<button class="link" style="margin:0 0 0 auto;color:var(--dark)" data-log="Release notes">Release notes '+G.arrow+'</button></section>';
+  h+='</main>';
+  return h;
+}
+
+/* ===================== module screen shell ===================== */
+function moduleScreen(id){
+  var m=null;for(var i=0;i<MODULES.length;i++)if(MODULES[i].id===id)m=MODULES[i];
+  var toolbar='<div class="stoolbar"><button class="back" data-nav="home">'+G.chevR.replace("\u203A","\u2039")+' Back</button>'+
+    '<span class="stitle"><span style="width:26px;height:26px;border-radius:3px;background:'+m.color+'1F;color:'+m.color+';display:grid;place-items:center">'+modIcon(id)+'</span>'+m.name+'</span>';
+  if(id==="api"){
+    toolbar+='<div class="seg" style="margin-left:14px">'+
+      '<button data-apiview="api" class="'+(state.apiView==="api"?"on":"")+'">API dependency</button>'+
+      '<button data-apiview="flow" class="'+(state.apiView==="flow"?"on":"")+'">Business flow</button></div>';
+  }
+  if(id==="data"){
+    toolbar+='<div class="seg" style="margin-left:14px">'+
+      '<button data-plane="data" class="'+(state.dataPlane==="data"?"on":"")+'">Data</button>'+
+      '<button data-plane="transform" class="'+(state.dataPlane==="transform"?"on":"")+'">Transform</button>'+
+      '<button data-plane="orch" class="'+(state.dataPlane==="orch"?"on":"")+'">Orchestration</button></div>'+
+      '<button class="back" data-expand="1" style="margin-left:8px">'+(state.dataExpanded?"Collapse columns":"Expand columns")+'</button>';
+  }
+  toolbar+='<span style="margin-left:auto;font-size:11px;color:var(--textHelp)">DEMO data</span></div>';
+
+  if(id==="datapoint")return '<div class="screen">'+toolbar+datapointBody()+'</div>';
+  return '<div class="screen">'+toolbar+'<div class="sbody"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg><div id="nodes"></div>'+
+    graphControls(id)+'</div><div class="drawer" id="drawer">'+drawerContent(id)+'</div></div></div>';
+}
+function graphControls(id){
+  var fp="";
+  if(id==="api"&&state.apiView==="flow"){
+    fp='<div class="flowpick">';
+    for(var f in FLOWS)fp+='<button class="fbtn '+(f===state.apiFlow?"on":"")+'" data-flow="'+f+'">'+f+'</button>';
+    fp+='</div>';
+  }
+  var legend='<div class="legend">'+legendFor(id)+'</div>';
+  var zoom='<div class="zoomctl"><button class="zbtn" data-zoom="in">'+G.plus+'</button><button class="zbtn" data-zoom="out">'+G.minus+'</button><button class="zbtn" data-zoom="fit">'+G.fit+'</button></div>';
+  return fp+legend+zoom;
+}
+function legendFor(id){
+  if(id==="system")return '<span class="lg"><span style="width:16px;border-top:2px solid var(--muted);display:inline-block"></span> active interface</span><span class="lg"><span style="width:16px;border-top:2px dashed var(--warning);display:inline-block"></span> marked Replace</span>';
+  if(id==="api")return state.apiView==="api"?'<span class="lg"><span style="width:16px;border-top:2px solid var(--muted);display:inline-block"></span> shared $ref</span><span class="lg"><span style="width:16px;border-top:2px dashed var(--warning);display:inline-block"></span> runtime call</span>':'<span class="lg"><span style="width:16px;border-top:2px solid var(--pop2);display:inline-block"></span> call sequence</span>';
+  if(id==="data")return '<span class="lg"><span style="width:16px;border-top:2px solid var(--muted);display:inline-block"></span> data flow</span><span class="lg"><span style="width:16px;border-top:2px solid #7c3aed;display:inline-block"></span> transform</span><span class="lg"><span style="width:16px;border-top:2px dashed var(--muted);display:inline-block"></span> orchestration</span>';
+  return "";
+}
+
+/* ===================== graph drawing ===================== */
+function drawGraph(id){
+  var nodes=document.getElementById("nodes"),edges=document.getElementById("edges");
+  if(!nodes||!edges)return;
+  var NW=160,NH=46;
+  var xf="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";
+  nodes.style.transformOrigin="0 0";nodes.style.transform=xf;
+  var defs='<defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="'+cssv("--muted")+'"/></marker>'+
+    '<marker id="arP" markerWidth="11" markerHeight="11" refX="9" refY="3.2" orient="auto"><path d="M0,0 L9,3.2 L0,6.4 Z" fill="'+cssv("--pop2")+'"/></marker></defs>';
+
+  if(id==="system"){
+    var pos={};SYS_NODES.forEach(function(n){pos[n.id]={x:60+n.col*230,y:70+n.row*150};});
+    var p="";SYS_EDGES.forEach(function(e){var a={x:pos[e.f].x+NW,y:pos[e.f].y+NH/2},b={x:pos[e.t].x,y:pos[e.t].y+NH/2};
+      var hot=state.sysSel&&(e.f===state.sysSel||e.t===state.sysSel),fade=state.sysSel&&!hot;
+      p+='<path d="'+curve(a,b)+'" fill="none" stroke="'+(e.kind==="replace"?cssv("--warning"):cssv("--muted"))+'" stroke-width="'+(hot?2.4:1.5)+'" '+(e.kind==="replace"?'stroke-dasharray="6 4"':'')+' marker-end="url(#ar)" opacity="'+(fade?.15:.8)+'"/>';
+      p+='<text x="'+((a.x+b.x)/2)+'" y="'+((a.y+b.y)/2-6)+'" text-anchor="middle" font-size="9.5" fill="'+cssv("--muted")+'" opacity="'+(fade?.15:.9)+'">'+e.cnt+'</text>';});
+    edges.innerHTML=defs+'<g transform="'+xf+'">'+p+'</g>';
+    var nh="";SYS_NODES.forEach(function(n){var P=pos[n.id];var rel=state.sysSel&&(state.sysSel===n.id||SYS_EDGES.some(function(e){return (e.f===state.sysSel&&e.t===n.id)||(e.t===state.sysSel&&e.f===n.id);}));
+      nh+='<div class="gnode '+(state.sysSel===n.id?"sel":"")+'" data-sysnode="'+n.id+'" style="left:'+P.x+'px;top:'+P.y+'px;border-top:3px solid '+(n.repl?cssv("--warning"):cssv("--navy"))+';opacity:'+(state.sysSel&&!rel?.4:1)+'">'+
+        '<div class="hd"><span class="mbadge" style="background:'+(n.repl?cssv("--warningBg"):cssv("--tint"))+';color:'+(n.repl?cssv("--warning"):cssv("--dark"))+'">'+(n.repl?"REPLACE":"KEEP")+'</span><span class="gnm">'+n.lab+'</span></div>'+
+        '<div class="gmt">'+n.sub+' '+G.mid+' '+n.iface+' interfaces</div></div>';});
+    nodes.innerHTML=nh;
+  }
+  else if(id==="api"&&state.apiView==="api"){
+    var pos2={};EP_NODES.forEach(function(n){pos2[n.id]={x:60+n.col*230,y:70+n.row*130};});
+    var p2="";EP_EDGES.forEach(function(e){var a={x:pos2[e.f].x+NW,y:pos2[e.f].y+NH/2},b={x:pos2[e.t].x,y:pos2[e.t].y+NH/2};
+      var hot=state.apiSel&&(e.f===state.apiSel||e.t===state.apiSel),fade=state.apiSel&&!hot;
+      p2+='<path d="'+curve(a,b)+'" fill="none" stroke="'+(e.k==="runtime"?cssv("--warning"):cssv("--muted"))+'" stroke-width="'+(hot?2.4:1.5)+'" '+(e.k==="runtime"?'stroke-dasharray="6 4"':'')+' marker-end="url(#ar)" opacity="'+(fade?.15:.8)+'"/>';
+      p2+='<text x="'+((a.x+b.x)/2)+'" y="'+((a.y+b.y)/2-6)+'" text-anchor="middle" font-size="9.5" fill="'+cssv("--muted")+'" opacity="'+(fade?.15:.9)+'">'+e.via+'</text>';});
+    edges.innerHTML=defs+'<g transform="'+xf+'">'+p2+'</g>';
+    var nh2="";EP_NODES.forEach(function(n){var ep=EP[n.id],mc=ep.m==="POST"?"#7c3aed":"#0f766e",P=pos2[n.id];
+      var rel=state.apiSel&&(state.apiSel===n.id||EP_EDGES.some(function(e){return (e.f===state.apiSel&&e.t===n.id)||(e.t===state.apiSel&&e.f===n.id);}));
+      nh2+='<div class="gnode '+(state.apiSel===n.id?"sel":"")+'" data-epnode="'+n.id+'" style="left:'+P.x+'px;top:'+P.y+'px;border-top:3px solid '+mc+';opacity:'+(state.apiSel&&!rel?.4:1)+'">'+
+        '<div class="hd"><span class="mbadge" style="background:'+mc+'22;color:'+mc+'">'+ep.m+'</span><span class="gnm">'+n.id+'</span></div>'+
+        '<div class="gmt">'+ep.fields.length+' fields '+G.mid+' '+ep.ref+'</div></div>';});
+    nodes.innerHTML=nh2;
+  }
+  else if(id==="api"&&state.apiView==="flow"){
+    var fl=FLOWS[state.apiFlow],pos3={};fl.steps.forEach(function(s,i){pos3[i+1]={x:70+i*215,y:150};});
+    var p3="";fl.edges.forEach(function(e){var a={x:pos3[e[0]].x+NW,y:pos3[e[0]].y+NH/2},b={x:pos3[e[1]].x,y:pos3[e[1]].y+NH/2};
+      var hot=state.apiStep&&(e[0]===state.apiStep||e[1]===state.apiStep),fade=state.apiStep&&!hot;
+      p3+='<path d="'+curve(a,b)+'" fill="none" stroke="'+cssv("--pop2")+'" stroke-width="'+(hot?2.6:1.8)+'" marker-end="url(#arP)" opacity="'+(fade?.15:.85)+'"/>';
+      p3+='<text x="'+((a.x+b.x)/2)+'" y="'+((a.y+b.y)/2-5)+'" text-anchor="middle" font-size="9.5" fill="'+cssv("--pop2")+'" opacity="'+(fade?.2:1)+'">{{'+e[2]+'}}</text>';});
+    edges.innerHTML=defs+'<g transform="'+xf+'">'+p3+'</g>';
+    var nh3="";fl.steps.forEach(function(s,i){var P=pos3[i+1];
+      nh3+='<div class="gnode '+(state.apiStep===i+1?"sel":"")+'" data-stepnode="'+(i+1)+'" style="left:'+P.x+'px;top:'+P.y+'px;border-left:3px solid '+cssv("--pop2")+';opacity:'+(state.apiStep&&state.apiStep!==i+1?.4:1)+'">'+
+        '<div class="hd"><span class="snum" style="background:'+cssv("--pop2")+'">'+(i+1)+'</span><span class="gnm" style="font-size:11.5px">'+s[0]+'</span></div>'+
+        '<div class="gmt">'+s[3]+'</div></div>';});
+    nodes.innerHTML=nh3;
+  }
+  else if(id==="data"){
+    var pos4={};DATA_NODES.forEach(function(n){pos4[n.id]={x:50+n.col*215,y:60+n.row*150};});
+    var vis=DATA_EDGES.filter(function(e){return state.dataPlane==="data"?(e.kind==="data"||e.kind==="transform"):state.dataPlane==="transform"?e.kind==="transform":true;});
+    var p4="";vis.forEach(function(e){var a={x:pos4[e.f].x+NW,y:pos4[e.f].y+NH/2},b={x:pos4[e.t].x,y:pos4[e.t].y+NH/2};
+      var hot=state.dataSel&&(e.f===state.dataSel||e.t===state.dataSel),fade=state.dataSel&&!hot;
+      var col=e.kind==="transform"?"#7c3aed":cssv("--muted");
+      p4+='<path d="'+curve(a,b)+'" fill="none" stroke="'+col+'" stroke-width="'+(hot?2.4:1.5)+'" '+(e.kind==="orch"?'stroke-dasharray="6 4"':'')+' marker-end="url(#ar)" opacity="'+(fade?.15:.8)+'"/>';});
+    edges.innerHTML=defs+'<g transform="'+xf+'">'+p4+'</g>';
+    var nh4="";DATA_NODES.forEach(function(n){var P=pos4[n.id];
+      var rel=state.dataSel&&(state.dataSel===n.id||vis.some(function(e){return (e.f===state.dataSel&&e.t===n.id)||(e.t===state.dataSel&&e.f===n.id);}));
+      nh4+='<div class="gnode '+(state.dataSel===n.id?"sel":"")+'" data-datanode="'+n.id+'" style="left:'+P.x+'px;top:'+P.y+'px;border-top:3px solid '+LAYERC[n.layer]+';opacity:'+(state.dataSel&&!rel?.4:1)+'">'+
+        '<div class="hd"><span class="gnm">'+n.lab+'</span><span style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:'+GATEC[n.gate]+'"></span></div>'+
+        '<div class="gmt">'+n.sub+'</div>'+
+        (state.dataExpanded&&n.cols.length?'<div class="gcols">'+n.cols.map(function(c){var key=c.indexOf("*")>-1;return '<div class="gcol '+(key?"key":"")+'"><span>'+(key?G.key+" "+c.replace("*",""):c)+'</span></div>';}).join("")+'</div>':'')+
+        '</div>';});
+    nodes.innerHTML=nh4;
+  }
+}
+
+/* ===================== drawers ===================== */
+function drawerContent(id){
+  if(id==="system")return state.sysSel?sysDrawer():emptyDrawer("Select a system to see its interfaces, direction, and migration status.");
+  if(id==="api"&&state.apiView==="api")return state.apiSel?epDrawer():emptyDrawer("Select an endpoint to see its fields, dependencies, and the flows that use it.");
+  if(id==="api"&&state.apiView==="flow")return state.apiStep?stepDrawer():flowDrawer();
+  if(id==="data")return state.dataSel?dataDrawer():emptyDrawer("Select a dataset to see its columns, quality, and pipeline.");
+  return emptyDrawer("");
+}
+function emptyDrawer(t){return '<div class="empty">'+t+'</div>';}
+function kv(k,v,mono){return '<div class="kv"><span class="k">'+k+'</span><b'+(mono?' style="font-family:monospace"':'')+'>'+v+'</b></div>';}
+function sysDrawer(){
+  var n=null;SYS_NODES.forEach(function(x){if(x.id===state.sysSel)n=x;});
+  var ins=SYS_EDGES.filter(function(e){return e.t===state.sysSel;}),outs=SYS_EDGES.filter(function(e){return e.f===state.sysSel;});
+  var h='<div class="dh"><span class="mbadge" style="background:'+(n.repl?cssv("--warningBg"):cssv("--tint"))+';color:'+(n.repl?cssv("--warning"):cssv("--dark"))+'">'+(n.repl?"MARKED REPLACE":"KEEP")+'</span>'+
+    '<div style="font-size:17px;font-weight:700;margin-top:8px">'+n.lab+'</div><div style="font-size:12.5px;color:var(--textHelp);margin-top:4px">'+n.sub+' system</div></div><div class="dbody">';
+  h+='<div class="sect"><div class="st">Overview</div>'+kv("Interfaces",n.iface)+kv("Inbound",ins.length)+kv("Outbound",outs.length)+kv("Status",n.repl?"Replace planned":"Active")+'</div>';
+  h+='<div class="sect"><div class="st">Outbound interfaces ('+outs.length+')</div>';
+  outs.forEach(function(e){h+='<div class="frow"><b style="font-family:monospace">'+state.sysSel+' '+G.arrow+' '+e.t+'</b><div style="font-size:11px;color:var(--textHelp);margin-top:3px">'+e.cnt+' interfaces '+G.mid+' '+(e.kind==="replace"?"marked Replace":"active")+'</div></div>';});
+  if(!outs.length)h+='<div style="font-size:12px;color:var(--textMuted)">none</div>';
+  h+='</div><div class="sect"><div class="st">Inbound interfaces ('+ins.length+')</div>';
+  ins.forEach(function(e){h+='<div class="frow"><b style="font-family:monospace">'+e.f+' '+G.arrow+' '+state.sysSel+'</b><div style="font-size:11px;color:var(--textHelp);margin-top:3px">'+e.cnt+' interfaces</div></div>';});
+  if(!ins.length)h+='<div style="font-size:12px;color:var(--textMuted)">none</div>';
+  h+='</div></div>';
+  return h;
+}
+function epDrawer(){
+  var ep=EP[state.apiSel],mc=ep.m==="POST"?"#7c3aed":"#0f766e";
+  var deps=EP_EDGES.filter(function(e){return e.f===state.apiSel||e.t===state.apiSel;});
+  var h='<div class="dh"><span class="mbadge" style="background:'+mc+'22;color:'+mc+'">'+ep.m+'</span>'+
+    '<div style="font-size:16px;font-weight:700;margin-top:8px;font-family:monospace">'+state.apiSel+'</div><div style="font-size:12.5px;color:var(--textHelp);margin-top:4px">'+ep.sum+'</div></div><div class="dbody">';
+  h+='<div class="sect"><div class="st">Schema object</div>'+kv("$ref",ep.ref)+kv("Owner",ep.owner)+'</div>';
+  h+='<div class="sect"><div class="st">Fields ('+ep.fields.length+')</div>';
+  ep.fields.forEach(function(f){h+='<div class="frow"><div style="display:flex;align-items:center;gap:7px"><span style="font-family:monospace;'+(f[2]?"font-weight:700":"")+'">'+(f[2]?G.key+" ":"")+f[0]+'</span><span class="pill" style="background:var(--pageBg);color:var(--textMuted)">'+f[1]+'</span></div><div style="font-size:11px;color:var(--textHelp);margin-top:3px">'+f[3]+'</div></div>';});
+  h+='</div><div class="sect"><div class="st">Dependencies ('+deps.length+')</div>';
+  deps.forEach(function(e){var o=e.f===state.apiSel?e.t:e.f;h+=kv((e.f===state.apiSel?G.arrow+" ":"\u2190 ")+o,e.k==="runtime"?"runtime":"$ref "+e.via,1);});
+  h+='</div><div class="sect"><div class="st">Used in flows ('+ep.flows.length+')</div>';
+  ep.flows.forEach(function(f){h+='<div class="kv"><span>'+f+'</span><button class="pill" data-gotoflow="'+f+'" style="color:var(--pop2);background:#e35f421e;border:none;cursor:pointer">open flow</button></div>';});
+  h+='</div></div>';
+  return h;
+}
+function flowDrawer(){
+  var fl=FLOWS[state.apiFlow];
+  var h='<div class="dh"><span class="pill" style="color:var(--pop2);background:#e35f421e">business flow</span>'+
+    '<div style="font-size:16px;font-weight:700;margin-top:8px">'+state.apiFlow+'</div><div style="font-size:12.5px;color:var(--textHelp);margin-top:4px">'+fl.steps.length+' steps from SEI Postman</div></div><div class="dbody">';
+  h+='<div class="sect"><div class="st">Overview</div>'+kv("Owner",fl.owner)+kv("Schedule",fl.sched)+kv("Steps",fl.steps.length)+'</div>';
+  h+='<div class="sect"><div class="st">Sequence</div>';
+  fl.steps.forEach(function(s,i){h+='<div class="frow"><div style="display:flex;align-items:center;gap:7px"><span class="snum" style="background:var(--pop2)">'+(i+1)+'</span><b style="font-family:monospace">'+s[0]+'</b></div><div style="font-size:11px;color:var(--textHelp);margin-top:4px">in <span style="font-family:monospace">'+s[1]+'</span> '+G.mid+' out <b style="color:#0f766e">'+s[2]+'</b></div></div>';});
+  h+='</div><div style="font-size:11.5px;color:var(--textMuted);margin-top:12px">Click a step in the graph to drill into its I/O.</div></div>';
+  return h;
+}
+function stepDrawer(){
+  var fl=FLOWS[state.apiFlow],s=fl.steps[state.apiStep-1];
+  var inE=null,outE=null;fl.edges.forEach(function(e){if(e[1]===state.apiStep)inE=e;if(e[0]===state.apiStep)outE=e;});
+  var h='<div class="dh"><span class="snum" style="background:var(--pop2);display:inline-grid">'+state.apiStep+'</span>'+
+    '<div style="font-size:15px;font-weight:700;margin-top:8px;font-family:monospace">'+s[0]+'</div><div style="font-size:12.5px;color:var(--textHelp);margin-top:4px">'+s[3]+'</div></div><div class="dbody">';
+  h+='<div class="sect"><div class="st">Step I/O</div>'+kv("Input",s[1],1)+kv("Output",s[2])+kv("Position","step "+state.apiStep+" of "+fl.steps.length)+'</div>';
+  h+='<div class="sect"><div class="st">Data flow</div>'+kv(inE?"\u2190 from step "+inE[0]:"entry",inE?inE[2]:"first call",!!inE)+kv(outE?G.arrow+" to next":"terminal",outE?outE[2]:"flow output",!!outE)+'</div>';
+  h+='<button class="back" data-backstep="1" style="margin-top:14px;width:100%">'+"\u2039"+' Back to flow</button></div>';
+  return h;
+}
+function dataDrawer(){
+  var n=null;DATA_NODES.forEach(function(x){if(x.id===state.dataSel)n=x;});
+  var ins=DATA_EDGES.filter(function(e){return e.t===state.dataSel;}),outs=DATA_EDGES.filter(function(e){return e.f===state.dataSel;});
+  var h='<div class="dh"><span class="pill" style="color:'+LAYERC[n.layer]+';background:'+LAYERC[n.layer]+'22;text-transform:uppercase">'+n.layer+'</span>'+
+    '<div style="font-size:16px;font-weight:700;margin-top:8px;font-family:monospace">'+n.lab+'</div><div style="font-size:12.5px;color:var(--textHelp);margin-top:4px">'+n.sub+'</div></div><div class="dbody">';
+  h+='<div class="sect"><div class="st">Asset</div>'+kv("Layer",n.layer)+kv("Quality gate",'<span class="pill" style="color:'+GATEC[n.gate]+';background:'+GATEC[n.gate]+'1e">'+n.gate+'</span>')+kv("Upstream",ins.length)+kv("Downstream",outs.length)+'</div>';
+  if(n.cols.length){h+='<div class="sect"><div class="st">Columns ('+n.cols.length+')</div>';
+    n.cols.forEach(function(c){var key=c.indexOf("*")>-1;h+='<div class="frow"><span style="font-family:monospace;'+(key?"font-weight:700":"")+'">'+(key?G.key+" "+c.replace("*",""):c)+'</span></div>';});h+='</div>';}
+  h+='<div class="sect"><div class="st">Lineage</div>';
+  ins.forEach(function(e){h+=kv("\u2190 "+e.f,e.kind,1);});outs.forEach(function(e){h+=kv(G.arrow+" "+e.t,e.kind,1);});
+  h+='</div></div>';
+  return h;
+}
+
+/* ===================== datapoint screen ===================== */
+function datapointBody(){
+  var names=Object.keys(DPOINTS);var dp=DPOINTS[state.dpSel];
+  var list='<div class="dplist"><div class="st" style="padding:12px 14px">Datapoints</div>';
+  names.forEach(function(n){list+='<button class="dpbtn '+(state.dpSel===n?"on":"")+'" data-dp="'+n+'" style="font-family:monospace">'+n+'<span style="float:right;font-size:10px;opacity:.7;font-family:Roboto">'+(dp&&n===state.dpSel?"":"")+'</span></button>';});
+  list+='</div>';
+  var detail='<div style="flex:1;overflow:auto;padding:24px"><h2 style="font-family:monospace;margin:0 0 4px;font-size:20px">'+state.dpSel+'</h2>'+
+    '<p style="font-size:13px;color:var(--textHelp);margin:0 0 14px">'+dp.desc+'</p>'+
+    '<div style="display:flex;gap:8px;margin-bottom:20px"><span class="pill" style="background:var(--pageBg);color:var(--textMuted)">'+dp.type+'</span>'+
+    '<span class="pill" style="background:var(--pageBg);color:var(--textMuted)">'+(dp.api.length+dp.data.length+dp.sys.length)+' locations</span>'+
+    '<span class="pill" style="background:var(--pageBg);color:var(--textMuted)">'+dp.flows.length+' flows</span></div>';
+  detail+=dpGroup("In API 360 endpoints",dp.api,"api");
+  detail+=dpGroup("In Data 360 datasets",dp.data,"data");
+  detail+=dpGroup("In System Interface 360 systems",dp.sys,"system");
+  detail+='<div class="st" style="margin-top:16px">Flows it moves through</div><div style="display:flex;gap:8px;flex-wrap:wrap">';
+  dp.flows.forEach(function(f){detail+='<span class="pill" style="color:var(--pop2);background:#e35f421e">'+f+'</span>';});
+  detail+='</div></div>';
+  return '<div class="sbody">'+list+detail+'</div>';
+}
+function dpGroup(title,items,mod){
+  var c=modColor(mod);var h='<div class="st" style="margin-top:6px">'+title+' ('+items.length+')</div>';
+  items.forEach(function(it){h+='<div class="dpitem"><span style="width:9px;height:9px;border-radius:50%;background:'+c+'"></span><b style="font-family:monospace;font-size:13px">'+it+'</b>'+
+    '<button class="pill" data-jump="'+mod+'" style="margin-left:auto;color:'+c+';background:'+c+'1e;border:none;cursor:pointer">open '+modName(mod).split(" ")[0]+' '+G.arrow+'</button></div>';});
+  return h;
+}
+
+/* ===================== palette ===================== */
+function paletteEl(){
+  var wrap=el('<div class="scrim"></div>');
+  var cmd=el('<div class="cmd"><input placeholder="Search across systems, APIs, datasets, datapoints" /><div class="cmdlist" id="cmdlist"></div></div>');
+  wrap.appendChild(cmd);
+  wrap.addEventListener("click",function(e){if(e.target===wrap)close();});
+  var input=cmd.querySelector("input");
+  function results(q){
+    q=(q||"").toLowerCase();var groups=[];
+    if(!q)groups.push(["Recent",PALETTE.recent.map(function(r){return [r,"","system"];})]);
+    ["Systems","Endpoints","Datasets","Datapoints","Actions"].forEach(function(g){
+      var items=PALETTE[g].filter(function(it){return !q||it[0].toLowerCase().indexOf(q)>-1;});
+      if(items.length)groups.push([g,items]);});
+    return groups;
+  }
+  function paint(q){
+    var list=cmd.querySelector("#cmdlist");var groups=results(q);
+    if(!groups.length){list.innerHTML='<div style="padding:30px;text-align:center;color:var(--textMuted)">No matches.</div>';return;}
+    var h="";groups.forEach(function(g){h+='<div class="cmdgrp">'+g[0]+'</div>';
+      g[1].forEach(function(it){h+='<button class="cmdrow" data-pnav="'+(it[2]||"home")+'"><span style="color:var(--muted);display:flex">'+modIcon(it[2]||"data")+'</span><span class="cn">'+esc(it[0])+'</span>'+(it[1]?'<span class="cm">'+it[1]+'</span>':'')+'</button>';});});
+    list.innerHTML=h;
+    list.querySelectorAll("[data-pnav]").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-pnav");close();if(["system","api","data","datapoint"].indexOf(d)>-1)navTo(d);else console.log("Open "+d);};});
+  }
+  paint("");
+  input.addEventListener("input",function(){paint(input.value);});
+  setTimeout(function(){input.focus();},30);
+  return wrap;
+}
+
+/* ===================== nav + wiring ===================== */
+function navTo(id){state.screen=id;state.zoom=1;state.panX=0;state.panY=0;
+  state.sysSel=null;state.apiSel=null;state.apiStep=null;state.dataSel=null;render();}
+function close(){state.palette=false;render();}
+
+function wire(){
+  var app=document.getElementById("app");
+  app.querySelectorAll("[data-nav]").forEach(function(b){b.onclick=function(){navTo(b.getAttribute("data-nav"));};});
+  app.querySelectorAll("[data-log]").forEach(function(b){b.onclick=function(){console.log(b.getAttribute("data-log"));};});
+  var th=app.querySelector("[data-theme]");if(th)th.onclick=function(){state.dark=!state.dark;render();};
+  var pb=app.querySelector("[data-palette]");if(pb)pb.onclick=function(){state.palette=true;render();};
+  // api
+  app.querySelectorAll("[data-apiview]").forEach(function(b){b.onclick=function(){state.apiView=b.getAttribute("data-apiview");state.apiSel=null;state.apiStep=null;render();};});
+  app.querySelectorAll("[data-flow]").forEach(function(b){b.onclick=function(){state.apiFlow=b.getAttribute("data-flow");state.apiStep=null;render();};});
+  // data
+  app.querySelectorAll("[data-plane]").forEach(function(b){b.onclick=function(){state.dataPlane=b.getAttribute("data-plane");render();};});
+  var ex=app.querySelector("[data-expand]");if(ex)ex.onclick=function(){state.dataExpanded=!state.dataExpanded;render();};
+  // datapoint
+  app.querySelectorAll("[data-dp]").forEach(function(b){b.onclick=function(){state.dpSel=b.getAttribute("data-dp");render();};});
+  app.querySelectorAll("[data-jump]").forEach(function(b){b.onclick=function(){navTo(b.getAttribute("data-jump"));};});
+  // zoom
+  app.querySelectorAll("[data-zoom]").forEach(function(b){b.onclick=function(){var z=b.getAttribute("data-zoom");
+    if(z==="in")state.zoom=Math.min(2.2,state.zoom*1.15);else if(z==="out")state.zoom=Math.max(.4,state.zoom/1.15);else{state.zoom=1;state.panX=0;state.panY=0;}
+    drawGraph(state.screen);};});
+  // node clicks (delegated after drawGraph, but also bind here for existing)
+  bindNodes();
+  // drawer cross-links
+  app.querySelectorAll("[data-gotoflow]").forEach(function(b){b.onclick=function(){state.apiView="flow";state.apiFlow=b.getAttribute("data-gotoflow");state.apiStep=null;render();};});
+  var bs=app.querySelector("[data-backstep]");if(bs)bs.onclick=function(){state.apiStep=null;render();};
+  // canvas pan
+  var canvas=app.querySelector("#canvas");
+  if(canvas){var drag=null;
+    canvas.addEventListener("mousedown",function(e){if(e.target.closest(".gnode")||e.target.closest("button"))return;drag={x:e.clientX,y:e.clientY,px:state.panX,py:state.panY};canvas.style.cursor="grabbing";});
+    window.addEventListener("mousemove",function(e){if(!drag)return;state.panX=drag.px+(e.clientX-drag.x);state.panY=drag.py+(e.clientY-drag.y);applyPan();});
+    window.addEventListener("mouseup",function(){drag=null;if(canvas)canvas.style.cursor="grab";});
+    // touch
+    canvas.addEventListener("touchstart",function(e){var tt=e.touches[0];if(e.target.closest(".gnode")||e.target.closest("button"))return;drag={x:tt.clientX,y:tt.clientY,px:state.panX,py:state.panY};});
+    canvas.addEventListener("touchmove",function(e){if(!drag)return;var tt=e.touches[0];state.panX=drag.px+(tt.clientX-drag.x);state.panY=drag.py+(tt.clientY-drag.y);applyPan();});
+    canvas.addEventListener("touchend",function(){drag=null;});
+  }
+}
+function applyPan(){var n=document.getElementById("nodes"),ed=document.getElementById("edges");var xf="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";
+  if(n)n.style.transform=xf;if(ed){var g=ed.querySelector("g");if(g)g.setAttribute("transform",xf);}}
+function bindNodes(){
+  var app=document.getElementById("app");
+  app.querySelectorAll("[data-sysnode]").forEach(function(d){d.onclick=function(){state.sysSel=d.getAttribute("data-sysnode");render();};});
+  app.querySelectorAll("[data-epnode]").forEach(function(d){d.onclick=function(){state.apiSel=d.getAttribute("data-epnode");render();};});
+  app.querySelectorAll("[data-stepnode]").forEach(function(d){d.onclick=function(){state.apiStep=parseInt(d.getAttribute("data-stepnode"));render();};});
+  app.querySelectorAll("[data-datanode]").forEach(function(d){d.onclick=function(){state.dataSel=d.getAttribute("data-datanode");render();};});
+}
+
+/* keyboard */
+document.addEventListener("keydown",function(e){
+  var k=e.key.toLowerCase();
+  if((e.metaKey||e.ctrlKey)&&k==="k"){e.preventDefault();state.palette=!state.palette;render();return;}
+  if(k==="escape"){if(state.palette){close();}else if(state.screen!=="home"){navTo("home");}return;}
+});
+
+render();
+</script>
+</body>
+</html>
