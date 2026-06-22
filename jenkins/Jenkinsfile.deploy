@@ -1,0 +1,166 @@
+// =====================================================================
+// CP Metadata Catalog - build & deploy pipeline (streamlined)
+//
+// Builds the two images (cp-catalog-api, cp-catalog-ui; ingestion reuses the
+// api image) and deploys to OpenShift. Assumes you already have a Jenkins agent
+// with: oc, podman (or buildah), trivy, and access to your registry + Nexus.
+//
+// Set the env{} values and create the matching Jenkins credentials.
+// =====================================================================
+
+pipeline {
+  agent { label 'openshift' }              // your existing agent label
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  parameters {
+    choice(name: 'ENVIRONMENT', choices: ['dev', 'uat', 'prod'],
+           description: 'Target OpenShift project')
+    booleanParam(name: 'RUN_DB_MIGRATIONS', defaultValue: false,
+           description: 'Apply SQL schema migrations to METACAT (first deploy)')
+  }
+
+  environment {
+    REGISTRY         = 'image-registry.openshift-image-registry.svc:5000'
+    PROJECT          = "cp-catalog-${params.ENVIRONMENT}"
+    IMAGE_API        = "${REGISTRY}/${PROJECT}/cp-catalog-api"
+    IMAGE_UI         = "${REGISTRY}/${PROJECT}/cp-catalog-ui"
+
+    PIP_INDEX_URL    = credentials('nexus-pip-index-url')
+    NPM_REGISTRY     = credentials('nexus-npm-registry')
+    OCP_SERVER       = credentials('ocp-api-server')
+    OCP_TOKEN        = credentials("ocp-token-${params.ENVIRONMENT}")
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script { env.TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim() }
+        echo "CP Catalog @ ${env.TAG} -> ${params.ENVIRONMENT}"
+      }
+    }
+
+    stage('Login to OpenShift') {
+      steps {
+        sh '''
+          oc login "$OCP_SERVER" --token="$OCP_TOKEN" --insecure-skip-tls-verify=true
+          oc project "$PROJECT"
+          podman login "$REGISTRY" -u "$(oc whoami)" -p "$OCP_TOKEN" --tls-verify=false
+        '''
+      }
+    }
+
+    stage('Build images') {
+      parallel {
+        stage('API') {
+          steps {
+            sh '''
+              podman build --build-arg PIP_INDEX_URL="$PIP_INDEX_URL" \
+                -f api/Dockerfile -t "$IMAGE_API:$TAG" -t "$IMAGE_API:latest" .
+            '''
+          }
+        }
+        stage('UI') {
+          steps {
+            sh '''
+              podman build --build-arg NPM_REGISTRY="$NPM_REGISTRY" \
+                --build-arg VITE_API_BASE=/api \
+                -f ui/Dockerfile -t "$IMAGE_UI:$TAG" -t "$IMAGE_UI:latest" .
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Scan images (Trivy)') {
+      steps {
+        sh '''
+          trivy image --severity HIGH,CRITICAL --exit-code 1 "$IMAGE_API:$TAG"
+          trivy image --severity HIGH,CRITICAL --exit-code 1 "$IMAGE_UI:$TAG"
+        '''
+      }
+    }
+
+    stage('Push') {
+      steps {
+        sh '''
+          podman push --tls-verify=false "$IMAGE_API:$TAG"
+          podman push --tls-verify=false "$IMAGE_API:latest"
+          podman push --tls-verify=false "$IMAGE_UI:$TAG"
+          podman push --tls-verify=false "$IMAGE_UI:latest"
+        '''
+      }
+    }
+
+    stage('DB migrations (METACAT)') {
+      when { expression { params.RUN_DB_MIGRATIONS } }
+      steps {
+        script {
+          if (params.ENVIRONMENT == 'prod') {
+            input message: 'Apply schema migrations to PROD METACAT?', ok: 'Apply'
+          }
+        }
+        withCredentials([usernamePassword(credentialsId: "metacat-${params.ENVIRONMENT}",
+                          usernameVariable: 'MUSER', passwordVariable: 'MPASS'),
+                         string(credentialsId: "metacat-dsn-${params.ENVIRONMENT}",
+                          variable: 'MDSN')]) {
+          sh '''
+            for f in sql/01_schema.sql sql/02_schema_additions.sql \
+                     sql/03_quality_gate_observability.sql \
+                     sql/04_security_governance_versioning.sql \
+                     sql/06_oracle_text_search.sql; do
+              echo ">>> applying $f"
+              echo exit | sqlplus -s "$MUSER/$MPASS@$MDSN" @"$f" || \
+                echo "WARN: $f may already be applied"
+            done
+          '''
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        script {
+          if (params.ENVIRONMENT == 'prod') {
+            input message: 'Deploy to PRODUCTION?', ok: 'Deploy'
+          }
+        }
+        sh '''
+          # ensure workloads exist (first deploy), then roll the new tag
+          oc apply -f deploy/openshift/02-api.yaml
+          oc apply -f deploy/openshift/03-ui.yaml
+          oc apply -f deploy/openshift/04-ingestion-cronjob.yaml
+
+          oc set image deployment/cp-catalog-api api="$IMAGE_API:$TAG"
+          oc set image deployment/cp-catalog-ui  ui="$IMAGE_UI:$TAG"
+
+          oc rollout status deployment/cp-catalog-api --timeout=180s
+          oc rollout status deployment/cp-catalog-ui  --timeout=180s
+        '''
+      }
+    }
+
+    stage('Smoke test') {
+      steps {
+        sh '''
+          POD=$(oc get pod -l app=cp-catalog,component=api -o jsonpath='{.items[0].metadata.name}')
+          oc exec "$POD" -- curl -sf localhost:8000/health
+          echo "health OK"
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo "Deployed cp-catalog:$TAG to $PROJECT" }
+    failure { echo "Pipeline failed - see the failing stage above" }
+    always  { sh 'oc logout || true'; cleanWs() }
+  }
+}

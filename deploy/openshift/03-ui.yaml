@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cp-catalog-ui
+  namespace: cp-catalog
+  labels: { app: cp-catalog, component: ui }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: cp-catalog, component: ui }
+  template:
+    metadata:
+      labels: { app: cp-catalog, component: ui }
+    spec:
+      containers:
+        - name: ui
+          image: image-registry.openshift-image-registry.svc:5000/cp-catalog/cp-catalog-ui:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cp-catalog-ui
+  namespace: cp-catalog
+  labels: { app: cp-catalog, component: ui }
+spec:
+  selector: { app: cp-catalog, component: ui }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cp-catalog
+  namespace: cp-catalog
+  labels: { app: cp-catalog }
+spec:
+  to:
+    kind: Service
+    name: cp-catalog-ui
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

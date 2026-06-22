@@ -1,0 +1,23 @@
+# =====================================================================
+# PATCH for deploy/openshift/01-config.yaml  (ConfigMap cp-catalog-config)
+#
+# Adds the file paths the connectors read from the cp-datacatalog webfs
+# folder. All paths live under /opt/approot/webfs/cp-datacatalog/.
+# =====================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cp-catalog-config
+  namespace: <CATALOG_NAMESPACE>
+data:
+  # --- existing business-metadata overlay (now sourced from webfs) ---
+  OVERLAY_PATH: "/opt/approot/webfs/cp-datacatalog/overlay/business_metadata_template.xlsx"
+
+  # --- NEW: API 360 source files on the share ---
+  API360_SWAGGER_PATH: "/opt/approot/webfs/cp-datacatalog/swagger/sei_swp.json"
+  API360_POSTMAN_PATH: "/opt/approot/webfs/cp-datacatalog/postman/sei_flows.json"
+  # optional: a folder to scan for multiple specs/collections
+  API360_SWAGGER_DIR:  "/opt/approot/webfs/cp-datacatalog/swagger"
+  API360_POSTMAN_DIR:  "/opt/approot/webfs/cp-datacatalog/postman"
+  # optional: where the API-360 connector may write parsed snapshots/status
+  API360_OUTPUT_DIR:   "/opt/approot/webfs/cp-datacatalog/_catalog_output"

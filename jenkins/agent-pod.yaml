@@ -1,0 +1,40 @@
+# Jenkins Kubernetes plugin - agent pod template for CP Catalog builds.
+# Paste this YAML into: Manage Jenkins > Clouds > Kubernetes > Pod Templates
+# (raw YAML), or reference it from the Jenkinsfile via the `yaml` agent.
+#
+# The agent image is the one built from jenkins/agent.Dockerfile. Privileged
+# is avoided; rootless podman uses fuse-overlayfs. The serviceAccount must be
+# allowed to push to the internal registry and run oc in the build project.
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins-agent: cp-catalog
+spec:
+  serviceAccountName: jenkins-builder
+  containers:
+    - name: builder
+      image: image-registry.openshift-image-registry.svc:5000/cp-catalog-cicd/jenkins-agent:latest
+      command: ["sleep"]
+      args: ["infinity"]
+      tty: true
+      securityContext:
+        # rootless podman needs these; no full privilege
+        runAsUser: 1001
+        capabilities:
+          add: ["SETUID", "SETGID"]
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits: { cpu: "2", memory: "4Gi" }
+      volumeMounts:
+        - name: podman-storage
+          mountPath: /home/jenkins/.local/share/containers
+        - name: trivy-cache
+          mountPath: /home/jenkins/.cache/trivy
+  volumes:
+    - name: podman-storage
+      emptyDir: {}
+    - name: trivy-cache
+      # pre-populated PVC with the offline Trivy DB in air-gapped clusters
+      persistentVolumeClaim:
+        claimName: trivy-db-cache

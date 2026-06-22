@@ -1,0 +1,54 @@
+# =====================================================================
+# PATCH for deploy/openshift/04-ingestion-cronjob.yaml
+#
+# Adds the cp-datacatalog webfs mount so the ingestion pod can read the
+# Swagger / Postman / overlay files from the CIFS share. Read-WRITE per
+# requirement (catalog may write back, e.g. parsed snapshots / status).
+#
+# Apply by merging these volumeMounts/volumes into the existing container
+# spec in 04-ingestion-cronjob.yaml (shown in full context here).
+# =====================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cp-catalog-ingestion
+  namespace: <CATALOG_NAMESPACE>
+  labels: { app: cp-catalog, component: ingestion }
+spec:
+  schedule: "30 6 * * 1-5"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ingestion
+              image: image-registry.openshift-image-registry.svc:5000/<CATALOG_NAMESPACE>/cp-catalog-api:latest
+              command: ["python", "-m", "ingestion.run"]
+              envFrom:
+                - secretRef: { name: cp-catalog-secret }
+                - configMapRef: { name: cp-catalog-config }
+              volumeMounts:
+                # --- existing mounts (keep) ---
+                - name: dbt-artifacts
+                  mountPath: /artifacts
+                  readOnly: true
+                # --- NEW: catalog's CIFS share folder ---
+                - name: webfs
+                  mountPath: /opt/approot/webfs
+                  readOnly: false          # read-write per requirement
+              resources:
+                requests: { cpu: "200m", memory: "512Mi" }
+                limits:   { cpu: "1",    memory: "1Gi" }
+          volumes:
+            - name: dbt-artifacts
+              persistentVolumeClaim:
+                claimName: dbt-artifacts-pvc
+            # --- NEW: bind the catalog's own webfs PVC ---
+            - name: webfs
+              persistentVolumeClaim:
+                claimName: cp-datacatalog-webfs

@@ -1,0 +1,53 @@
+## ---------------------------------------------------------------------
+## CP Catalog - TEST configuration (security DISABLED)
+## Use this to exercise core features (search, lineage, 360, quality,
+## gates, versioning views) WITHOUT LDAP/Entra. Fill the DB values and apply.
+##
+##   oc apply -f deploy/openshift/01-config-test.yaml
+##
+## CATALOG_DISABLE_SECURITY=true skips the secured router. The API refuses to
+## start if this is combined with ENVIRONMENT=prod, so it cannot reach prod.
+## DO NOT use this file for UAT/Prod - use 01-config.yaml with full auth there.
+## ---------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cp-catalog-secret
+  namespace: cp-catalog-dev
+type: Opaque
+stringData:
+  # --- catalog store (METACAT) ---
+  METACAT_USER: "metacat"
+  METACAT_PASSWORD: "CHANGE_ME"
+  METACAT_DSN: "oracle-host:1521/FREEPDB1"
+
+  # --- source: Oracle (id = PROD) ---
+  ORA_PROD_USER: "catalog_ro"
+  ORA_PROD_PASSWORD: "CHANGE_ME"
+  ORA_PROD_DSN: "oracle-host:1521/FREEPDB1"
+
+  # (add MSSQL_*/AIRFLOW_DB_DSN here only if you want those harvested in test)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cp-catalog-config
+  namespace: cp-catalog-dev
+data:
+  # restrict harvested schemas (optional)
+  ORA_PROD_SCHEMAS: "PBDW,IMDW,STAR"
+
+  # dbt artifacts (mount the PVC your dbt build writes to)
+  DBT_TARGET_PLATFORM: "ora_prod"
+  DBT_PROJECT: "cp"
+  DBT_DIALECT: "oracle"
+  DBT_MANIFEST_PATH: "/artifacts/target/manifest.json"
+  DBT_CATALOG_PATH: "/artifacts/target/catalog.json"
+  DBT_RUN_RESULTS_PATH: "/artifacts/target/run_results.json"
+
+  # open CORS for local testing
+  CORS_ORIGINS: "*"
+
+  # ---- TEST MODE: auth off (cannot run with ENVIRONMENT=prod) ----
+  ENVIRONMENT: "dev"
+  CATALOG_DISABLE_SECURITY: "true"

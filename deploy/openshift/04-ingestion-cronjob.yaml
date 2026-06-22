@@ -1,0 +1,55 @@
+## Catalog ingestion as an OpenShift CronJob.
+## Use this if you prefer to run ingestion outside Airflow. If you instead run
+## the provided Airflow DAG (airflow/dags/cp_catalog_ingestion.py) on your
+## existing Airflow, you can skip this CronJob.
+##
+## Requires the dbt artifacts to be available at /artifacts (mount the same PVC
+## the dbt build writes to).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cp-catalog-ingestion
+  namespace: cp-catalog
+  labels: { app: cp-catalog, component: ingestion }
+spec:
+  schedule: "30 6 * * 1-5"          # after the 06:00 medallion build, weekdays
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ingestion
+              image: image-registry.openshift-image-registry.svc:5000/cp-catalog/cp-catalog-api:latest
+              command: ["python", "-m", "ingestion.run"]
+              envFrom:
+                - secretRef: { name: cp-catalog-secret }
+                - configMapRef: { name: cp-catalog-config }
+              volumeMounts:
+                - name: dbt-artifacts
+                  mountPath: /artifacts
+                  readOnly: true
+                - name: overlay
+                  mountPath: /overlay
+                  readOnly: true
+                - name: webfs
+                  mountPath: /opt/approot/webfs
+                  readOnly: false       # API 360 reads SEI swagger/postman here
+              resources:
+                requests: { cpu: "200m", memory: "512Mi" }
+                limits: { cpu: "1", memory: "1Gi" }
+          volumes:
+            - name: dbt-artifacts
+              persistentVolumeClaim:
+                claimName: dbt-artifacts-pvc      # written by your dbt build
+            - name: overlay
+              configMap:
+                name: cp-catalog-overlay          # business template (optional)
+                optional: true
+            - name: webfs
+              persistentVolumeClaim:
+                claimName: cp-datacatalog-webfs    # CIFS share (see 05-webfs-storage.yaml)

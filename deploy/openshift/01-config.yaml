@@ -1,0 +1,72 @@
+## ---------------------------------------------------------------------
+## CP Catalog — configuration (Secret + ConfigMap)
+## Copy to a private location, fill in real values, and apply.
+## NEVER commit real credentials.
+## ---------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cp-catalog-secret
+  namespace: cp-catalog
+type: Opaque
+stringData:
+  # --- catalog store (METACAT) ---
+  METACAT_USER: "metacat"
+  METACAT_PASSWORD: "CHANGE_ME"
+  METACAT_DSN: "oracle-host:1521/FREEPDB1"
+
+  # --- source: Oracle (id = PROD) ---
+  ORA_PROD_USER: "catalog_ro"
+  ORA_PROD_PASSWORD: "CHANGE_ME"
+  ORA_PROD_DSN: "oracle-host:1521/FREEPDB1"
+
+  # --- source: SQL Server (id = RISK) ---
+  MSSQL_RISK_CONNSTR: "DRIVER={ODBC Driver 18 for SQL Server};SERVER=mssql-host;DATABASE=risk;UID=catalog_ro;PWD=CHANGE_ME;TrustServerCertificate=yes"
+
+  # --- Airflow metadata DB (read-only) ---
+  AIRFLOW_DB_DSN: "postgresql://airflow_ro:CHANGE_ME@airflow-pg:5432/airflow"
+
+  # --- Entra ID (Azure AD) OIDC ---
+  ENTRA_TENANT_ID: "CHANGE_ME"
+  ENTRA_AUDIENCE: "api://cp-catalog"
+  AD_GROUP_CATALOG_VIEWER: "CHANGE_ME-group-oid"
+  AD_GROUP_CATALOG_ENGINEER: "CHANGE_ME-group-oid"
+  AD_GROUP_CATALOG_ADMIN: "CHANGE_ME-group-oid"
+
+  # --- SQL preview: dedicated READ-ONLY DB principal ---
+  SQL_PREVIEW_DSN: "oracle-host:1521/FREEPDB1"
+  SQL_PREVIEW_USER: "catalog_preview_ro"
+  SQL_PREVIEW_PASSWORD: "CHANGE_ME"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cp-catalog-config
+  namespace: cp-catalog
+data:
+  # restrict harvested schemas (comma-separated; optional)
+  ORA_PROD_SCHEMAS: "PBDW,IMDW,STAR"
+  MSSQL_RISK_SCHEMAS: "risk"
+
+  # dbt artifacts (mounted from the artifacts PVC written by the dbt build)
+  DBT_TARGET_PLATFORM: "ora_prod"
+  DBT_PROJECT: "cp"
+  DBT_DIALECT: "oracle"
+  DBT_MANIFEST_PATH: "/artifacts/target/manifest.json"
+  DBT_CATALOG_PATH: "/artifacts/target/catalog.json"
+  DBT_RUN_RESULTS_PATH: "/artifacts/target/run_results.json"
+  DBT_SOURCES_PATH: "/artifacts/target/sources.json"
+
+  # business metadata overlay template (mounted from a configmap or PVC)
+  OVERLAY_PATH: "/overlay/business_metadata_template.xlsx"
+
+  # --- API 360 (SEI Swagger + Postman, read from the webfs CIFS share) ---
+  API360_SWAGGER_DIR: "/opt/approot/webfs/cp-datacatalog/swagger"
+  API360_POSTMAN_DIR: "/opt/approot/webfs/cp-datacatalog/postman"
+  API360_DICTIONARY_PATH: "/opt/approot/webfs/cp-datacatalog/overlay/sei_dictionary.csv"
+
+  # --- security controls ---
+  CORS_ORIGINS: "https://cp-catalog.apps.example.com"
+  RATE_LIMIT_PER_MIN: "120"
+  SQL_PREVIEW_ROW_LIMIT: "100"
+  SQL_PREVIEW_TIMEOUT_S: "10"

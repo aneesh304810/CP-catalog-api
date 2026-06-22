@@ -1,0 +1,89 @@
+// =====================================================================
+// Jenkins additions for API 360.
+//
+// The existing jenkins/Jenkinsfile.deploy already builds the api + ui images
+// and runs DB migrations. API 360 ships inside those same two images (new UI
+// component + new API router + new ingestion connector), so NO new image is
+// needed. The only pipeline changes are:
+//   1. add sql/07_api360.sql to the DB-migrations list
+//   2. (optional) a smoke test hitting /api360/sources
+//   3. ensure the webfs PVC exists before the ingestion runs
+//
+// Below are drop-in replacements / additions for the relevant stages.
+// =====================================================================
+
+// --- (1) DB migrations: add 07_api360.sql to the loop -----------------
+//
+// In stage('DB migrations (METACAT)'), extend the file list:
+//
+//   for f in sql/01_schema.sql sql/02_schema_additions.sql \
+//            sql/03_quality_gate_observability.sql \
+//            sql/04_security_governance_versioning.sql \
+//            sql/06_oracle_text_search.sql \
+//            sql/07_api360.sql ; do        // <-- ADDED
+//     echo ">>> applying $f"
+//     echo exit | sqlplus -s "$MUSER/$MPASS@$MDSN" @"$f" || \
+//       echo "WARN: $f may already be applied"
+//   done
+
+
+// --- (2) webfs storage: ensure PVC exists (run once / idempotent) -----
+//
+// Add this stage before 'Deploy' so ingestion can mount the share:
+
+stage('Ensure webfs storage') {
+  steps {
+    sh '''
+      # secret (created out-of-band; this only verifies it exists)
+      oc get secret cp-datacatalog-smb-secret >/dev/null 2>&1 || {
+        echo "ERROR: cp-datacatalog-smb-secret missing. Create it first:"
+        echo "  oc create secret generic cp-datacatalog-smb-secret \\"
+        echo "    --from-literal=username=... --from-literal=password=... --from-literal=domain=..."
+        exit 1
+      }
+      # PV + PVC (idempotent)
+      oc apply -f deploy/openshift/05-webfs-storage.yaml
+      # wait for bind
+      for i in $(seq 1 30); do
+        PHASE=$(oc get pvc cp-datacatalog-webfs -o jsonpath='{.status.phase}' 2>/dev/null || true)
+        [ "$PHASE" = "Bound" ] && { echo "PVC bound"; break; }
+        echo "waiting for PVC bind ($i)..."; sleep 4
+      done
+    '''
+  }
+}
+
+
+// --- (3) Deploy: also apply the config + cronjob with the webfs mount --
+//
+// In stage('Deploy'), add these applies alongside the existing oc apply lines:
+//
+//   oc apply -f deploy/openshift/01-config.yaml            // includes API360_* paths
+//   oc apply -f deploy/openshift/04-ingestion-cronjob.yaml // includes webfs mount
+
+
+// --- (4) Initial API 360 ingestion (first deploy only) ----------------
+//
+// Optional stage to populate the api_* tables right after deploy:
+
+stage('Seed API 360') {
+  when { expression { params.RUN_DB_MIGRATIONS } }   // run on first deploy
+  steps {
+    sh '''
+      oc delete job api360-initial-ingest --ignore-not-found
+      oc create job --from=cronjob/cp-catalog-ingestion api360-initial-ingest
+      oc wait --for=condition=complete --timeout=300s job/api360-initial-ingest || \
+        oc logs job/api360-initial-ingest
+    '''
+  }
+}
+
+
+// --- (5) Smoke test: verify the API 360 route responds ----------------
+//
+// Extend the existing 'Smoke test' stage:
+//
+//   POD=$(oc get pod -l app=cp-catalog,component=api -o jsonpath='{.items[0].metadata.name}')
+//   oc exec "$POD" -- curl -sf localhost:8000/health
+//   oc exec "$POD" -- curl -sf localhost:8000/api360/sources   // <-- ADDED
+//   echo "api360 route OK"

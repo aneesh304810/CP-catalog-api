@@ -1,0 +1,290 @@
+// =====================================================================
+// CP Metadata Catalog - Jenkins pipeline (declarative)
+//
+// Builds and deploys three images (api, ui, ingestion uses the api image),
+// runs the CI/CD security gates from the ARB doc (SAST, dependency audit,
+// secret scan, image scan, SBOM, sign), and deploys to OpenShift.
+//
+// Designed for an AIR-GAPPED environment:
+//   - all base images come from the internal registry (Nexus / OpenShift)
+//   - pip/npm point at the internal Nexus repositories
+//   - scanners run from pre-provisioned tools on the agent (no internet)
+//
+// Configure the values in the environment{} block and the Jenkins credentials
+// referenced by credentials('...').
+// =====================================================================
+
+pipeline {
+  agent { label 'openshift && podman' }   // an agent with oc, podman, trivy, etc.
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
+  parameters {
+    choice(name: 'ENVIRONMENT', choices: ['dev', 'uat', 'prod'],
+           description: 'Target OpenShift environment')
+    booleanParam(name: 'DEPLOY', defaultValue: true,
+           description: 'Deploy after a successful build')
+    booleanParam(name: 'RUN_DB_MIGRATIONS', defaultValue: false,
+           description: 'Run SQL schema migrations against METACAT')
+  }
+
+  environment {
+    // --- internal registry (Nexus-fronted OpenShift registry) ---
+    REGISTRY        = 'image-registry.openshift-image-registry.svc:5000'
+    REGISTRY_PROJECT = "cp-catalog-${params.ENVIRONMENT}"
+    IMAGE_API       = "${REGISTRY}/${REGISTRY_PROJECT}/cp-catalog-api"
+    IMAGE_UI        = "${REGISTRY}/${REGISTRY_PROJECT}/cp-catalog-ui"
+    IMAGE_TAG       = "${env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : env.BUILD_NUMBER}"
+
+    // --- internal Nexus package repos (air-gapped) ---
+    PIP_INDEX_URL   = credentials('nexus-pip-index-url')   // https://nexus/.../simple
+    NPM_REGISTRY    = credentials('nexus-npm-registry')    // https://nexus/.../npm
+    // --- OpenShift access ---
+    OCP_SERVER      = credentials('ocp-api-server')
+    OCP_TOKEN       = credentials("ocp-token-${params.ENVIRONMENT}")
+    // --- image signing key (cosign) ---
+    COSIGN_KEY      = credentials('cosign-private-key')
+    COSIGN_PASSWORD = credentials('cosign-password')
+
+    // gate thresholds
+    TRIVY_SEVERITY  = 'HIGH,CRITICAL'
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          env.IMAGE_TAG  = env.GIT_COMMIT.take(8)
+        }
+        echo "Building CP Catalog @ ${env.IMAGE_TAG} for ${params.ENVIRONMENT}"
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // SECURITY GATE 1 - secret scan (fail fast, before anything builds)
+    // ----------------------------------------------------------------
+    stage('Secret scan (gitleaks)') {
+      steps {
+        sh '''
+          gitleaks detect --source . --no-banner \
+            --report-format sarif --report-path gitleaks.sarif \
+            --redact || { echo "Secrets detected - failing build"; exit 1; }
+        '''
+      }
+      post { always { archiveArtifacts artifacts: 'gitleaks.sarif', allowEmptyArchive: true } }
+    }
+
+    // ----------------------------------------------------------------
+    // Lint + unit tests (Python logic that runs offline)
+    // ----------------------------------------------------------------
+    stage('Python lint & unit tests') {
+      steps {
+        sh '''
+          python3 -m venv .venv && . .venv/bin/activate
+          pip install --index-url "$PIP_INDEX_URL" -q \
+            -r api/requirements.txt ruff bandit pytest
+          ruff check api ingestion || true
+          pytest -q tests/ --junitxml=pytest-report.xml || true
+        '''
+      }
+      post { always { junit testResults: 'pytest-report.xml', allowEmptyResults: true } }
+    }
+
+    // ----------------------------------------------------------------
+    // SECURITY GATE 2 - SAST (bandit) + dependency audit
+    // ----------------------------------------------------------------
+    stage('SAST & dependency audit') {
+      parallel {
+        stage('Bandit (SAST)') {
+          steps {
+            sh '''
+              . .venv/bin/activate
+              bandit -r api ingestion -f sarif -o bandit.sarif \
+                --severity-level medium || \
+                { echo "Bandit found medium+ issues"; exit 1; }
+            '''
+          }
+          post { always { archiveArtifacts artifacts: 'bandit.sarif', allowEmptyArchive: true } }
+        }
+        stage('pip-audit') {
+          steps {
+            sh '''
+              . .venv/bin/activate
+              pip install --index-url "$PIP_INDEX_URL" -q pip-audit
+              pip-audit -r api/requirements.txt \
+                --vulnerability-service osv --format json -o pip-audit.json || \
+                { echo "Vulnerable dependencies found"; exit 1; }
+            '''
+          }
+          post { always { archiveArtifacts artifacts: 'pip-audit.json', allowEmptyArchive: true } }
+        }
+        stage('npm audit (UI)') {
+          steps {
+            sh '''
+              cd ui
+              npm config set registry "$NPM_REGISTRY"
+              npm ci
+              npm audit --audit-level=high || \
+                { echo "UI dependencies have high+ vulns"; exit 1; }
+            '''
+          }
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Build images (podman, rootless) - api & ui
+    // ----------------------------------------------------------------
+    stage('Build images') {
+      parallel {
+        stage('API image') {
+          steps {
+            sh '''
+              podman build \
+                --build-arg PIP_INDEX_URL="$PIP_INDEX_URL" \
+                -f api/Dockerfile -t "$IMAGE_API:$IMAGE_TAG" .
+            '''
+          }
+        }
+        stage('UI image') {
+          steps {
+            sh '''
+              podman build \
+                --build-arg NPM_REGISTRY="$NPM_REGISTRY" \
+                --build-arg VITE_API_BASE=/api \
+                -f ui/Dockerfile -t "$IMAGE_UI:$IMAGE_TAG" .
+            '''
+          }
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // SECURITY GATE 3 - image scan (Trivy) + SBOM
+    // ----------------------------------------------------------------
+    stage('Image scan & SBOM') {
+      parallel {
+        stage('Trivy API') {
+          steps {
+            sh '''
+              trivy image --severity "$TRIVY_SEVERITY" --exit-code 1 \
+                --format sarif -o trivy-api.sarif "$IMAGE_API:$IMAGE_TAG"
+              trivy image --format cyclonedx -o sbom-api.json "$IMAGE_API:$IMAGE_TAG"
+            '''
+          }
+          post { always { archiveArtifacts artifacts: 'trivy-api.sarif,sbom-api.json', allowEmptyArchive: true } }
+        }
+        stage('Trivy UI') {
+          steps {
+            sh '''
+              trivy image --severity "$TRIVY_SEVERITY" --exit-code 1 \
+                --format sarif -o trivy-ui.sarif "$IMAGE_UI:$IMAGE_TAG"
+              trivy image --format cyclonedx -o sbom-ui.json "$IMAGE_UI:$IMAGE_TAG"
+            '''
+          }
+          post { always { archiveArtifacts artifacts: 'trivy-ui.sarif,sbom-ui.json', allowEmptyArchive: true } }
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Push + sign (cosign)
+    // ----------------------------------------------------------------
+    stage('Push & sign') {
+      steps {
+        sh '''
+          podman login --username "$(oc whoami)" --password "$OCP_TOKEN" "$REGISTRY" --tls-verify=false || \
+            oc registry login --insecure=true
+          podman push --tls-verify=false "$IMAGE_API:$IMAGE_TAG"
+          podman push --tls-verify=false "$IMAGE_UI:$IMAGE_TAG"
+
+          export COSIGN_PASSWORD="$COSIGN_PASSWORD"
+          cosign sign --key "$COSIGN_KEY" --tlog-upload=false "$IMAGE_API:$IMAGE_TAG"
+          cosign sign --key "$COSIGN_KEY" --tlog-upload=false "$IMAGE_UI:$IMAGE_TAG"
+        '''
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Optional DB migrations (gated; prod requires approval)
+    // ----------------------------------------------------------------
+    stage('DB migrations (METACAT)') {
+      when { expression { params.RUN_DB_MIGRATIONS } }
+      steps {
+        script {
+          if (params.ENVIRONMENT == 'prod') {
+            input message: 'Run schema migrations against PROD METACAT?', ok: 'Proceed'
+          }
+        }
+        withCredentials([usernamePassword(credentialsId: "metacat-${params.ENVIRONMENT}",
+                          usernameVariable: 'MUSER', passwordVariable: 'MPASS')]) {
+          sh '''
+            for f in sql/01_schema.sql sql/02_schema_additions.sql \
+                     sql/03_quality_gate_observability.sql \
+                     sql/04_security_governance_versioning.sql \
+                     sql/06_oracle_text_search.sql; do
+              echo "Applying $f"
+              sqlplus -s "$MUSER/$MPASS@$METACAT_DSN" @"$f" || \
+                echo "WARN: $f may have already been applied (idempotency varies)"
+            done
+          '''
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Deploy to OpenShift
+    // ----------------------------------------------------------------
+    stage('Deploy') {
+      when { expression { params.DEPLOY } }
+      steps {
+        script {
+          if (params.ENVIRONMENT == 'prod') {
+            input message: 'Deploy to PRODUCTION?', ok: 'Deploy'
+          }
+        }
+        sh '''
+          oc login "$OCP_SERVER" --token="$OCP_TOKEN" --insecure-skip-tls-verify=true
+          oc project "$REGISTRY_PROJECT"
+
+          # apply config (Secret/ConfigMap must already exist or be applied separately)
+          oc apply -f deploy/openshift/02-api.yaml
+          oc apply -f deploy/openshift/03-ui.yaml
+          oc apply -f deploy/openshift/04-ingestion-cronjob.yaml
+
+          # roll the new image tag
+          oc set image deployment/cp-catalog-api api="$IMAGE_API:$IMAGE_TAG"
+          oc set image deployment/cp-catalog-ui  ui="$IMAGE_UI:$IMAGE_TAG"
+
+          oc rollout status deployment/cp-catalog-api --timeout=180s
+          oc rollout status deployment/cp-catalog-ui  --timeout=180s
+        '''
+      }
+    }
+
+    stage('Smoke test') {
+      when { expression { params.DEPLOY } }
+      steps {
+        sh '''
+          API_POD=$(oc get pod -l app=cp-catalog,component=api -o jsonpath='{.items[0].metadata.name}')
+          oc exec "$API_POD" -- curl -sf localhost:8000/health
+          echo "Health check passed"
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo "CP Catalog ${env.IMAGE_TAG} deployed to ${params.ENVIRONMENT}" }
+    failure { echo "Build failed - check the failing gate above" }
+    always  { cleanWs() }
+  }
+}

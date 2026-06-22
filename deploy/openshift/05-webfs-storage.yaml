@@ -1,0 +1,62 @@
+# =====================================================================
+# CP Data Catalog — CIFS/SMB shared storage (webfs)
+#
+# Self-contained PV + PVC for the catalog, bound to the same SMB server as
+# the ODH notebook but using its OWN folder:
+#     //qcwebfs.testbbh.com/fixedincomejupyteruser$/cp-datacatalog
+#
+# Driver: smb.csi.k8s.io (statically provisioned PV + PVC pair, like ODH).
+# Mount target in pods: /opt/approot/webfs  (files under .../cp-datacatalog)
+#
+# BEFORE APPLYING:
+#   1. Create the SMB credentials secret (see 05a-webfs-secret.yaml).
+#   2. Create the folder on the share:  cp-datacatalog/
+#      (swagger/  postman/  overlay/  subfolders — see docs/INSTALL_DEPLOY.md)
+#   3. Replace <CATALOG_NAMESPACE> with your project, e.g. cp-catalog-prod.
+# =====================================================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cp-datacatalog-webfs-pv
+  labels: { app: cp-catalog, component: webfs }
+spec:
+  capacity:
+    storage: 20Gi                      # CIFS ignores this; required field only
+  accessModes:
+    - ReadWriteMany                    # RWX — coexists with the ODH mount
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""                 # static binding (no dynamic provisioning)
+  mountOptions:
+    - dir_mode=0770
+    - file_mode=0770
+    - uid=1001                         # OpenShift app-root uid
+    - gid=0                            # root group (OpenShift convention)
+    - noperm
+    - mfsymlinks
+    - cache=strict
+  csi:
+    driver: smb.csi.k8s.io
+    # volumeHandle MUST be globally unique across PVs of this driver.
+    # Format convention: {smb-server}/{share}/{uniqueName}
+    volumeHandle: qcwebfs.testbbh.com/fixedincomejupyteruser$/cp-datacatalog
+    volumeAttributes:
+      # The SMB source. Note the catalog uses its OWN subfolder on the share.
+      source: //qcwebfs.testbbh.com/fixedincomejupyteruser$/cp-datacatalog
+    nodeStageSecretRef:
+      name: cp-datacatalog-smb-secret
+      namespace: <CATALOG_NAMESPACE>
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cp-datacatalog-webfs
+  namespace: <CATALOG_NAMESPACE>
+  labels: { app: cp-catalog, component: webfs }
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""                 # bind to the static PV above
+  volumeName: cp-datacatalog-webfs-pv
+  resources:
+    requests:
+      storage: 20Gi
